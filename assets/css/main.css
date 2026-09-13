@@ -1,0 +1,126 @@
+/* Overgenomen 1:1 van het Lovable-ontwerp (dish-drop-dashboard.lovable.app):
+   dezelfde tokens, dezelfde Tailwind-utilities, zodat elke pagina er
+   hetzelfde uitziet als de referentie. */
+@import "tailwindcss";
+
+:root {
+  --radius: 0.9rem;
+  --background: oklch(97.7% 0.014 95.5);
+  --foreground: oklch(24% 0.03 145);
+  --surface: oklch(99.5% 0.006 95);
+  --card: oklch(99.5% 0.006 95);
+  --card-foreground: oklch(24% 0.03 145);
+  --popover: oklch(99.5% 0.006 95);
+  --popover-foreground: oklch(24% 0.03 145);
+  --primary: oklch(48% 0.11 152);
+  --primary-foreground: oklch(98.5% 0.01 95);
+  --secondary: oklch(94% 0.025 110);
+  --secondary-foreground: oklch(32% 0.05 150);
+  --muted: oklch(94.5% 0.014 95);
+  --muted-foreground: oklch(52% 0.025 130);
+  --accent: oklch(72% 0.16 55);
+  --accent-foreground: oklch(22% 0.04 55);
+  --destructive: oklch(57.7% 0.19 27.3);
+  --destructive-foreground: oklch(98.5% 0.01 95);
+  --border: oklch(90% 0.018 100);
+  --input: oklch(90% 0.018 100);
+  --ring: oklch(48% 0.11 152);
+  --protein: oklch(62% 0.15 25);
+  --carbs: oklch(72% 0.15 75);
+  --fat: oklch(66% 0.11 240);
+  --kcal: oklch(48% 0.11 152);
+  --sidebar: oklch(98.5% 0.01 95);
+  --sidebar-foreground: oklch(24% 0.03 145);
+  --sidebar-primary: oklch(48% 0.11 152);
+  --sidebar-primary-foreground: oklch(98.5% 0.01 95);
+  --sidebar-accent: oklch(94% 0.025 110);
+  --sidebar-accent-foreground: oklch(32% 0.05 150);
+  --sidebar-border: oklch(90% 0.018 100);
+  --sidebar-ring: oklch(48% 0.11 152);
+  --shadow-soft: 0 1px 2px oklch(24% 0.03 145 / 0.05), 0 8px 24px -12px oklch(24% 0.03 145 / 0.18);
+  --shadow-lift: 0 12px 32px -12px oklch(24% 0.03 145 / 0.3);
+  --gradient-hero: linear-gradient(135deg, oklch(48% 0.11 152), oklch(62% 0.13 135));
+
+  --font-sans-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-protein: var(--protein);
+  --color-carbs: var(--carbs);
+  --color-fat: var(--fat);
+  --color-kcal: var(--kcal);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans-family);
+  --font-display: var(--font-display-family);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-lift: var(--shadow-lift);
+}
+
+@layer utilities {
+  .bg-hero {
+    background-image: var(--gradient-hero);
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-lift {
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans-family);
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display-family);
+}
+
+a {
+  color: var(--primary);
+}

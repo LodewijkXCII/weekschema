@@ -1,0 +1,1 @@
+ALTER TABLE "recipes" ADD COLUMN "afbeelding_url" text;

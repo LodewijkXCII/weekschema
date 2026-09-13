@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weekplanner
+      POSTGRES_PASSWORD: weekplanner
+      POSTGRES_DB: weekplanner
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+      - ./docker/init-pgcrypto.sql:/docker-entrypoint-initdb.d/init-pgcrypto.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weekplanner -d weekplanner"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Binnen het compose-netwerk heet de db-service "db", niet "localhost".
+      DATABASE_URL: postgres://weekplanner:weekplanner@db:5432/weekplanner
+    ports:
+      # Alleen op localhost binden -- niet publiek of zelfs LAN-breed
+      # bereikbaar. `tailscale serve` op de host proxyt hier verkeer vanuit
+      # het tailnet naartoe; dit poortnummer is nooit direct van buitenaf
+      # bereikbaar, ook niet via het thuisnetwerk.
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata_prod:

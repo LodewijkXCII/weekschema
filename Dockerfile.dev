@@ -1,0 +1,16 @@
+FROM node:22-slim
+WORKDIR /app
+
+# python3/make/g++ zijn nodig om drizzle-kit's optionele native driver
+# dependencies (bv. better-sqlite3) te kunnen compileren via node-gyp.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json* ./
+RUN npm install --legacy-peer-deps
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]

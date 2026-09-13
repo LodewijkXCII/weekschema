@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weekplanner
+      POSTGRES_PASSWORD: weekplanner
+      POSTGRES_DB: weekplanner
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-pgcrypto.sql:/docker-entrypoint-initdb.d/init-pgcrypto.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weekplanner -d weekplanner"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Overschrijft de "localhost" waarde uit .env: binnen het compose-
+      # netwerk is Postgres bereikbaar via de servicenaam "db", niet via
+      # localhost (dat is de app-container zelf).
+      DATABASE_URL: postgres://weekplanner:weekplanner@db:5432/weekplanner
+      NUXT_HOST: 0.0.0.0
+      NUXT_PORT: "3000"
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - nuxt_build:/app/.nuxt
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  node_modules:
+  nuxt_build:
