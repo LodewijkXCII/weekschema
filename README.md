@@ -7,8 +7,8 @@ optelling van nutriënten tegen een zelf ingesteld maximum.
 
 Stack: **Nuxt 3** (frontend + server API routes) · **Drizzle ORM** + **Postgres**
 (data) · **better-auth** (login, gedeeld tussen 2 accounts via een
-uitnodigingscode) · zelf gehost via Docker Compose, bereikbaar via
-**Tailscale** (zie `DEPLOY.md`).
+uitnodigingscode) · zelf gehost op een Raspberry Pi via Docker Compose,
+bereikbaar van buitenaf via **Twingate** (zie `DEPLOY.md`).
 
 ## 1. Lokaal opzetten (alles in Docker)
 
@@ -86,10 +86,11 @@ components/MetricBar.vue   het kleine voortgangsbalkje per nutriënt
 
 ## 3. Deployen
 
-Productie draait op een eigen Linux-server via Docker Compose, alleen
-bereikbaar via Tailscale (geen publieke poorten). Elke push naar `main`
+Productie draait op een Raspberry Pi via Docker Compose (die tegelijk ook
+het touchscreen-display aanstuurt, zie `DEPLOY.md`), bereikbaar van
+buitenaf via Twingate (geen publieke poorten). Elke push naar `main`
 deployt automatisch via GitHub Actions. Zie **`DEPLOY.md`** voor de volledige
-eenmalige server-setup (Tailscale, SSH-deploysleutel, GitHub secrets) en
+eenmalige setup (Twingate, SSH-deploysleutel, GitHub secrets) en
 `docker-compose.prod.yml` / `deploy.sh` voor hoe een deploy er inhoudelijk
 uitziet.
 

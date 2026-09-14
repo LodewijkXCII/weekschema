@@ -20,14 +20,15 @@ jobs:
     needs: typecheck
     runs-on: ubuntu-latest
     steps:
-      # Legt een tijdelijke, uitgaande verbinding met je tailnet -- geen
-      # inkomende poorten nodig op de server, werkt ook achter NAT.
-      - name: Verbind met tailnet
-        uses: tailscale/github-action@v3
+      # Legt een tijdelijke, uitgaande verbinding met je Twingate-netwerk --
+      # geen inkomende poorten nodig op de Pi, werkt ook achter NAT. De
+      # runner krijgt hiermee toegang tot de Resources die aan deze Service
+      # Account zijn toegewezen (zie DEPLOY.md) -- in dit geval de Pi op
+      # poort 22 voor de SSH-stap hieronder.
+      - name: Verbind met Twingate
+        uses: twingate/github-action@v1
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
+          service-key: ${{ secrets.TWINGATE_SERVICE_KEY }}
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1

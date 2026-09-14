@@ -9,9 +9,10 @@ beheren met macro-tracking.
 - **Drizzle ORM** + **Postgres** -- data
 - **better-auth** -- login, email/wachtwoord, gedeeld tussen 2 accounts
   via een uitnodigingscode (zie households/householdMembers)
-- Deploy: zelf gehost via Docker Compose op een eigen Linux-server, alleen
-  bereikbaar via **Tailscale** (`tailscale serve`, geen publieke poorten).
-  Deploys gaan automatisch via GitHub Actions bij een push naar `main`
+- Deploy: zelf gehost via Docker Compose op een Raspberry Pi, alleen
+  bereikbaar binnen het thuisnetwerk plus via **Twingate** voor toegang van
+  buitenaf (geen publieke poorten). Deploys gaan automatisch via GitHub
+  Actions bij een push naar `main`
   (zie `.github/workflows/deploy.yml`, `docker-compose.prod.yml`,
   `deploy.sh` en `DEPLOY.md` voor de volledige eenmalige server-setup).
 

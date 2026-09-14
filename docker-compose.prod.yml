@@ -26,14 +26,33 @@ services:
       # Binnen het compose-netwerk heet de db-service "db", niet "localhost".
       DATABASE_URL: postgres://weekplanner:weekplanner@db:5432/weekplanner
     ports:
-      # Alleen op localhost binden -- niet publiek of zelfs LAN-breed
-      # bereikbaar. `tailscale serve` op de host proxyt hier verkeer vanuit
-      # het tailnet naartoe; dit poortnummer is nooit direct van buitenaf
-      # bereikbaar, ook niet via het thuisnetwerk.
-      - "127.0.0.1:3000:3000"
+      # Bewust op alle interfaces (dus ook het LAN) i.p.v. alleen localhost:
+      # de Twingate-connector routeert verkeer op basis van het LAN-adres
+      # van de Pi, niet via een eigen virtuele interface zoals Tailscale dat
+      # deed -- 127.0.0.1 is voor extern verkeer niet onderscheppbaar. Nog
+      # steeds niet publiek: alleen bereikbaar binnen je eigen thuisnetwerk,
+      # plus via Twingate voor toestellen daarbuiten.
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
+
+  # Twingate-connector: legt een uitgaande verbinding met Twingate's control
+  # plane (geen inkomende poorten nodig, werkt achter NAT). network_mode:
+  # host zodat 'ie de app hierboven via de Pi's eigen LAN-adres kan
+  # bereiken. Tokens komen uit .env, gegenereerd bij het aanmaken van dit
+  # Remote Network in de Twingate admin console (zie DEPLOY.md).
+  twingate-connector:
+    image: twingate/connector:latest
+    restart: unless-stopped
+    network_mode: host
+    sysctls:
+      net.ipv4.ping_group_range: "0 2147483647"
+    environment:
+      TWINGATE_NETWORK: ${TWINGATE_NETWORK}
+      TWINGATE_ACCESS_TOKEN: ${TWINGATE_ACCESS_TOKEN}
+      TWINGATE_REFRESH_TOKEN: ${TWINGATE_REFRESH_TOKEN}
+      TWINGATE_LOG_ANALYTICS: v2
 
 volumes:
   pgdata_prod:

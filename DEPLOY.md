@@ -1,21 +1,65 @@
 # Deploy-runbook
 
-Eenmalige server-setup om Weekschema te draaien op je eigen Linux-server
-(Docker + Tailscale zijn er al), met automatische deploys via GitHub Actions
-bij elke push naar `main`. Alleen bereikbaar via je tailnet -- geen publieke
-poorten, geen reverse proxy nodig.
+Eenmalige setup om Weekschema te draaien op een **Raspberry Pi (4 of 5,
+4GB+ RAM)**, die zowel de server als het touchscreen-display is: Chromium
+draait lokaal in kiosk-modus en toont `/kiosk` fullscreen op het aangesloten
+scherm, terwijl dezelfde Pi ook de hele Docker-stack (Nuxt + Postgres) host.
+Bereikbaar op afstand (telefoon, laptop) via **Twingate** -- geen publieke
+poorten, geen reverse proxy nodig. Automatische deploys via GitHub Actions
+bij elke push naar `main`.
+
+**Belangrijk**: gebruik de **64-bit** versie van Raspberry Pi OS
+("Raspberry Pi OS (64-bit) with desktop"), niet de 32-bit of Lite-variant --
+Node 22's officiële Docker images ondersteunen geen 32-bit ARM meer, en voor
+kiosk-modus is een desktopomgeving nodig.
+
+**Hoe Twingate hier past**: in tegenstelling tot een peer-to-peer mesh-VPN
+(zoals Tailscale) werkt Twingate met een **Connector** (draait hier als
+Docker-service op de Pi, legt een uitgaande verbinding met Twingate's cloud)
+en **Resources** die je in de admin console definieert -- een IP+poort die
+via die Connector bereikbaar wordt voor toegestane gebruikers/service
+accounts. Dat betekent: geen automatische HTTPS-certificaten zoals
+Tailscale's `serve` die gaf, en de Resource moet het **echte LAN-IP** van de
+Pi zijn (niet `127.0.0.1` -- dat adres onderschept een extern toestel nooit,
+elk apparaat heeft zijn eigen loopback). De app draait daarom gewoon over
+HTTP binnen je vertrouwde thuisnetwerk + Twingate-tunnel; dat was toch al je
+threat model (LAN-toegang was al prima, het ging om geen publieke
+internet-blootstelling).
 
 Er zijn **twee verschillende SSH-sleutelparen** in dit verhaal, in
 tegengestelde richting -- houd ze niet door elkaar:
 
-- **Sleutel A (server → GitHub)**: zodat de server de private repo kan
+- **Sleutel A (Pi → GitHub)**: zodat de Pi de private repo kan
   clonen/pullen. Publieke helft als "Deploy key" op de GitHub-repo,
-  privésleutel blijft op de server.
-- **Sleutel B (GitHub Actions → server)**: zodat de CI-workflow via SSH kan
+  privésleutel blijft op de Pi.
+- **Sleutel B (GitHub Actions → Pi)**: zodat de CI-workflow via SSH kan
   inloggen om `deploy.sh` te draaien. Publieke helft in
-  `~/.ssh/authorized_keys` op de server, privésleutel als GitHub secret.
+  `~/.ssh/authorized_keys` op de Pi, privésleutel als GitHub secret.
 
-## 0. Lokaal: repo naar GitHub
+## 0. Pi voorbereiden
+
+Flash Raspberry Pi OS (64-bit, with desktop) op de SD-kaart (via Raspberry Pi
+Imager -- zet daar meteen hostname, SSH-toegang en wifi in via de
+geavanceerde opties, dan hoef je geen scherm/toetsenbord aan te sluiten voor
+deze stap).
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER      # opnieuw inloggen na deze regel
+```
+
+Stel daarna in je router een **DHCP-reservering** in voor de Pi's
+MAC-adres, zodat 'ie altijd hetzelfde LAN-IP krijgt (bv. `192.168.1.50`) --
+dat adres gebruik je zo als Twingate Resource-adres en als
+`BETTER_AUTH_URL`. Zonder reservering kan dat IP wijzigen en breekt beide.
+
+**SD-kaart-tip**: Postgres schrijft continu naar schijf; een goedkope
+SD-kaart kan daardoor sneller slijten/corrupt raken dan je zou willen op een
+apparaat dat 24/7 aanstaat. Een A2-rated SD-kaart, of nog beter, booten vanaf
+een USB-SSD (Pi 4/5 ondersteunen dit) is een prijs-waardige upgrade als dit
+lang moet meegaan. Niet verplicht om te beginnen.
+
+## 1. Lokaal: repo naar GitHub
 
 ```bash
 git init
@@ -32,12 +76,12 @@ git branch -M main
 git push -u origin main
 ```
 
-## 1. Server: repo clonen
+## 2. Pi: repo clonen
 
 Als de repo **public** is, kun je stap "Sleutel A" overslaan en gewoon
 `git clone https://github.com/<jouw-account>/weekschema.git` gebruiken.
 
-Voor een **private** repo, eenmalig op de server:
+Voor een **private** repo, eenmalig op de Pi:
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/weekschema_deploy_key -N ""
@@ -48,13 +92,28 @@ Zet die public key op GitHub: repo → Settings → Deploy keys → Add deploy k
 (read-only volstaat). Configureer git om 'm te gebruiken en clone dan:
 
 ```bash
-mkdir -p /opt/weekschema && cd /opt/weekschema
+sudo mkdir -p /opt/weekschema && sudo chown $USER /opt/weekschema
+cd /opt/weekschema
 GIT_SSH_COMMAND="ssh -i ~/.ssh/weekschema_deploy_key" \
   git clone git@github.com:<jouw-account>/weekschema.git .
 git config core.sshCommand "ssh -i ~/.ssh/weekschema_deploy_key"
 ```
 
-## 2. Server: `.env` aanmaken
+## 3. Twingate: Remote Network + Connector aanmaken
+
+In de Twingate admin console (`<jouw-tenant>.twingate.com`):
+
+1. **Team → Remote Networks** → nieuw Remote Network aanmaken, bv.
+   `thuis-pi`.
+2. Daarbinnen een **Connector** toevoegen → kies Docker als
+   deploymentmethode. De console genereert nu een kant-en-klaar
+   `docker run`/`docker-compose`-fragment met een echte
+   `TWINGATE_ACCESS_TOKEN` en `TWINGATE_REFRESH_TOKEN` -- **kopieer die
+   waarden** (samen met je tenant-naam als `TWINGATE_NETWORK`), er is al een
+   `twingate-connector`-service met de juiste vorm klaarstaand in
+   `docker-compose.prod.yml`, je hoeft alleen de tokens over te nemen.
+
+## 4. Pi: `.env` aanmaken
 
 ```bash
 cp .env.example .env
@@ -65,12 +124,12 @@ Vul in:
   productie wordt DATABASE_URL toch overschreven door `docker-compose.prod.yml`
   zodat de app-service de `db`-service binnen het compose-netwerk vindt.
 - `BETTER_AUTH_SECRET` -- genereer met `openssl rand -base64 32`.
-- `BETTER_AUTH_URL` -- de HTTPS-URL die je zo via Tailscale krijgt, zie
-  stap 4 (bv. `https://weekschema-server.your-tailnet.ts.net`). Kun je pas
-  invullen ná stap 4, dus doe stap 2 en 4 samen.
+- `BETTER_AUTH_URL` -- `http://<pi-lan-ip>:3000` (het vaste IP uit stap 0).
 - `ANTHROPIC_API_KEY` -- optioneel, alleen nodig voor "Recept importeren".
+- `TWINGATE_NETWORK` / `TWINGATE_ACCESS_TOKEN` / `TWINGATE_REFRESH_TOKEN` --
+  uit stap 3.
 
-## 3. Server: eerste handmatige deploy
+## 5. Pi: eerste handmatige deploy
 
 ```bash
 chmod +x deploy.sh
@@ -78,90 +137,130 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml exec -T app npm run db:migrate
 ```
 
-De app luistert nu alleen op `127.0.0.1:3000` -- expres niet publiek en niet
-eens LAN-breed bereikbaar, zie de comment in `docker-compose.prod.yml`.
+Dit bouwt het image rechtstreeks op de Pi (ARM64) -- dat werkt hier prima
+gezien de 4GB+ RAM, geen cross-compilatie nodig, en start meteen ook de
+Twingate-connector mee (die zou nu "Connected" moeten tonen in de admin
+console, onder het Remote Network van stap 3). De app luistert op poort 3000
+op alle interfaces -- bereikbaar binnen je thuisnetwerk, en straks via
+Twingate ook daarbuiten. Niet publiek op het internet.
 
-## 4. Server: bereikbaar maken via Tailscale
+## 6. Twingate: Resources aanmaken
 
-Eenmalig in de Tailscale-adminconsole (login.tailscale.com) onder
-**Settings → HTTPS Certificates**: zet dit aan als het nog niet aanstaat.
+In de admin console, binnen hetzelfde Remote Network (**Resources → Add**),
+twee aparte Resources aanmaken (los houden = losse toegangspolicies, de
+CI-runner heeft bv. geen webtoegang nodig en jij geen SSH-toegang vanaf je
+telefoon):
 
-Op de server:
+1. **Weekschema Web** -- adres `<pi-lan-ip>`, poort `3000`. Ken toegang toe
+   aan je eigen gebruikers-/groepsaccount (jij + je partner) zodat je 'm
+   vanaf je telefoon/laptop kan openen zodra de Twingate-app daar draait en
+   ingelogd is.
+2. **Weekschema SSH** -- adres `<pi-lan-ip>`, poort `22`. Toegang hiervoor
+   ken je zo aan de CI-service account toe (stap 7) -- nog niet aan
+   jezelf nodig, tenzij je ook zelf via Twingate wil SSH'en.
 
-```bash
-sudo tailscale serve --bg 3000
-tailscale serve status   # controleer de URL
-```
+## 7. GitHub: CI → Twingate toegang (Service Account)
 
-Dit proxyt HTTPS-verkeer uit je tailnet naar `localhost:3000`, met een
-automatisch Let's Encrypt-certificaat van Tailscale. De URL die je nu krijgt
-(iets als `https://<machinenaam>.<tailnet-naam>.ts.net`) is wat je in `.env`
-als `BETTER_AUTH_URL` zet (stap 2) -- pas daarna aan en herstart de app:
+Admin console → **Settings → Service Accounts** → nieuwe service account
+aanmaken (bv. `github-ci`). Genereer daarbinnen een **Service Key** en
+bewaar 'm -- die zie je maar één keer.
 
-```bash
-docker compose -f docker-compose.prod.yml up -d
-```
+Ken deze service account toegang toe tot de **Weekschema SSH**-resource uit
+stap 6 (via een Access Policy/Security Policy op die resource, niet meer).
+Zo kan de CI-runner straks alleen bij SSH op de Pi, niets anders.
 
-Test vanaf een ander toestel dat ook in je tailnet zit (telefoon met
-Tailscale-app, laptop): open de URL. **Let op voor later**: de kiosk-tablet
-(`/kiosk`) moet, zodra die er is, ook de Tailscale-app geïnstalleerd en
-ingelogd hebben in hetzelfde tailnet om erbij te kunnen.
+## 8. GitHub: SSH-sleutel voor de deploy-stap (Sleutel B)
 
-## 5. GitHub: CI → tailnet toegang (OAuth client)
-
-Tailscale-adminconsole → **Settings → OAuth clients** → Generate OAuth
-client. Geef 'm een tag, bv. `tag:ci`. Bewaar de **Client ID** en
-**Client secret** (die laatste zie je maar één keer).
-
-Als je een custom ACL-policy hebt (Access controls in de adminconsole),
-zorg dat `tag:ci` verbinding mag maken met je server-tag/host. Op de
-standaard/gratis ACL (alles mag met alles praten binnen je tailnet) hoef je
-niets aan te passen.
-
-## 6. GitHub: SSH-sleutel voor de deploy-stap (Sleutel B)
-
-Lokaal of op de server, maak een **apart** sleutelpaar (niet hetzelfde als
+Lokaal of op de Pi, maak een **apart** sleutelpaar (niet hetzelfde als
 sleutel A hierboven):
 
 ```bash
 ssh-keygen -t ed25519 -f ./github_deploy_key -N ""
 ```
 
-Zet de **public** key in `~/.ssh/authorized_keys` van de gebruiker op de
-server waarmee gedeployed wordt:
+Zet de **public** key in `~/.ssh/authorized_keys` van de gebruiker op de Pi
+waarmee gedeployed wordt:
 
 ```bash
-cat github_deploy_key.pub >> ~/.ssh/authorized_keys   # op de server
+cat github_deploy_key.pub >> ~/.ssh/authorized_keys   # op de Pi
 ```
 
 De **private** key (`github_deploy_key`, zonder `.pub`) gebruik je zo als
 GitHub secret. Verwijder 'm daarna lokaal.
 
-## 7. GitHub: secrets instellen
+## 9. GitHub: secrets instellen
 
 Repo → Settings → Secrets and variables → Actions → New repository secret:
 
 | Secret | Waarde |
 |---|---|
-| `TS_OAUTH_CLIENT_ID` | uit stap 5 |
-| `TS_OAUTH_SECRET` | uit stap 5 |
-| `DEPLOY_HOST` | Tailscale-hostname van je server (`tailscale status` op de server, of de `.ts.net`-naam uit stap 4 zonder `https://`) |
-| `DEPLOY_USER` | de SSH-gebruiker op de server (bv. `loek`) |
-| `DEPLOY_SSH_KEY` | volledige inhoud van de **private** sleutel uit stap 6 |
+| `TWINGATE_SERVICE_KEY` | volledige inhoud van de service key uit stap 7 |
+| `DEPLOY_HOST` | het vaste LAN-IP van de Pi uit stap 0 |
+| `DEPLOY_USER` | de SSH-gebruiker op de Pi (bv. `pi`) |
+| `DEPLOY_SSH_KEY` | volledige inhoud van de **private** sleutel uit stap 8 |
 
 `.github/workflows/deploy.yml` verwacht de repo op `/opt/weekschema` op de
-server (zie `script: bash /opt/weekschema/deploy.sh`) -- pas dat pad aan in
-de workflow als je een andere locatie hebt gebruikt in stap 1.
+Pi (zie `script: bash /opt/weekschema/deploy.sh`) -- pas dat pad aan in de
+workflow als je een andere locatie hebt gebruikt in stap 2.
 
-## 8. Klaar -- workflow vanaf nu
+## 10. Touchscreen kiosk-modus (Pi = server + scherm)
+
+Dit configureert de Pi's eigen desktopomgeving om na het opstarten
+automatisch, zonder inloggen, Chromium fullscreen op `/kiosk` te tonen op
+het aangesloten touchscreen.
+
+**Belangrijk**: laat Chromium naar **hetzelfde adres als `BETTER_AUTH_URL`**
+wijzen (`http://<pi-lan-ip>:3000`), niet naar `http://localhost:3000`. Twee
+verschillende origins (localhost vs. het LAN-IP) voor dezelfde app betekent
+twee losse cookie-jars/sessies voor better-auth -- verwarrend en onnodig. De
+Pi kan zijn eigen LAN-IP gewoon rechtstreeks bereiken, ook lokaal, zonder
+dat Twingate daarvoor nodig is (dat is alleen voor toestellen buiten je LAN).
+
+Auto-login naar het bureaublad instellen:
+
+```bash
+sudo raspi-config
+# System Options -> Boot / Auto Login -> Desktop Autologin
+# Display Options -> Screen Blanking -> uitzetten (touchscreen moet altijd aan blijven)
+```
+
+Raspberry Pi OS (Bookworm en later) gebruikt **labwc** (Wayland) als
+standaard-compositor. Het Chromium-binary heet, afhankelijk van je
+OS-versie, `chromium` of `chromium-browser` -- check met
+`which chromium chromium-browser` welke van de twee bestaat, en gebruik die
+hieronder.
+
+```bash
+mkdir -p ~/.config/labwc
+cat >> ~/.config/labwc/autostart <<'EOF'
+chromium --kiosk --noerrdialogs --disable-infobars \
+  --incognito --disable-session-crashed-bubble \
+  --app=http://<pi-lan-ip>:3000/kiosk &
+EOF
+```
+
+(Draait de Pi nog op het oudere X11/LXDE -- controleer met
+`echo $XDG_SESSION_TYPE` -- gebruik dan
+`~/.config/lxsession/LXDE-pi/autostart` met dezelfde Chromium-regel in
+plaats van het labwc-bestand.)
+
+De eerste keer moet je zelf inloggen in de Chromium-kiosk (er is geen
+aparte no-auth kiosk-modus) -- daarna onthoudt het Chromium-profiel de
+sessie, ook na een herstart van de Pi.
+
+## 11. Klaar -- workflow vanaf nu
 
 - **Dev**: blijft ongewijzigd op je Windows-machine, `docker compose up`
   (het gewone, niet-`.prod`-bestand), met live-reload zoals altijd.
 - **Deploy**: commit + `git push` naar `main` → GitHub Actions draait
-  `nuxt typecheck` als eerste check, verbindt daarna via Tailscale met je
-  server, en voert `deploy.sh` uit (`git reset --hard origin/main`,
-  image herbouwen, herstarten, migraties draaien, oude images opruimen).
-- Wil je een deploy handmatig herhalen op de server zelf (zonder GitHub)?
+  `nuxt typecheck` als eerste check, verbindt daarna via Twingate met de
+  Pi (SSH-resource, stap 6/7), en voert `deploy.sh` uit
+  (`git reset --hard origin/main`, image herbouwen op de Pi zelf,
+  herstarten, migraties draaien, oude images opruimen).
+- Wil je een deploy handmatig herhalen op de Pi zelf (zonder GitHub)?
   `bash /opt/weekschema/deploy.sh`.
-- Logs bekijken op de server: `docker compose -f docker-compose.prod.yml logs -f app`.
+- Logs bekijken op de Pi: `docker compose -f docker-compose.prod.yml logs -f app`.
 - Database-backup: `docker compose -f docker-compose.prod.yml exec db pg_dump -U weekplanner weekplanner > backup.sql`.
+- Vanaf je telefoon/laptop buiten het thuisnetwerk: installeer de Twingate-app,
+  log in, en open `http://<pi-lan-ip>:3000` zodra "Weekschema Web" als
+  Resource aan jouw account is toegekend (stap 6).
