@@ -26,15 +26,13 @@ HTTP binnen je vertrouwde thuisnetwerk + Twingate-tunnel; dat was toch al je
 threat model (LAN-toegang was al prima, het ging om geen publieke
 internet-blootstelling).
 
-Er zijn **twee verschillende SSH-sleutelparen** in dit verhaal, in
-tegengestelde richting -- houd ze niet door elkaar:
+De repo is **public** (`github.com/LodewijkXCII/weekschema`), dus de Pi
+heeft geen eigen sleutel nodig om 'm te clonen -- dat gaat gewoon via
+`https://`. Er is wel **één SSH-sleutelpaar** nodig, in deze richting:
 
-- **Sleutel A (Pi → GitHub)**: zodat de Pi de private repo kan
-  clonen/pullen. Publieke helft als "Deploy key" op de GitHub-repo,
-  privésleutel blijft op de Pi.
-- **Sleutel B (GitHub Actions → Pi)**: zodat de CI-workflow via SSH kan
-  inloggen om `deploy.sh` te draaien. Publieke helft in
-  `~/.ssh/authorized_keys` op de Pi, privésleutel als GitHub secret.
+- **GitHub Actions → Pi**: zodat de CI-workflow via SSH kan inloggen om
+  `deploy.sh` te draaien. Publieke helft in `~/.ssh/authorized_keys` op de
+  Pi, privésleutel als GitHub secret (stap 8).
 
 ## 0. Pi voorbereiden
 
@@ -67,36 +65,31 @@ git add .
 git commit -m "Initial commit"
 ```
 
-Maak op github.com een lege (private of public) repo aan, bv. `weekschema`.
-Voeg 'm toe als remote en push:
+Maak op github.com een lege **public** repo aan onder `LodewijkXCII`, bv.
+`weekschema` (New repository → Public, geen README/`.gitignore` aanvinken,
+die staan er al). Met de `gh`-CLI kan dat ook in één keer vanuit deze map:
 
 ```bash
-git remote add origin git@github.com:<jouw-account>/weekschema.git
+gh repo create LodewijkXCII/weekschema --public --source=. --remote=origin --push
+```
+
+Zonder `gh`: maak 'm handmatig aan op github.com, voeg 'm dan toe als
+remote en push:
+
+```bash
+git remote add origin https://github.com/LodewijkXCII/weekschema.git
 git branch -M main
 git push -u origin main
 ```
 
 ## 2. Pi: repo clonen
 
-Als de repo **public** is, kun je stap "Sleutel A" overslaan en gewoon
-`git clone https://github.com/<jouw-account>/weekschema.git` gebruiken.
-
-Voor een **private** repo, eenmalig op de Pi:
-
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/weekschema_deploy_key -N ""
-cat ~/.ssh/weekschema_deploy_key.pub
-```
-
-Zet die public key op GitHub: repo → Settings → Deploy keys → Add deploy key
-(read-only volstaat). Configureer git om 'm te gebruiken en clone dan:
+Repo is public, dus gewoon over `https://`, geen sleutel nodig:
 
 ```bash
 sudo mkdir -p /opt/weekschema && sudo chown $USER /opt/weekschema
+git clone https://github.com/LodewijkXCII/weekschema.git /opt/weekschema
 cd /opt/weekschema
-GIT_SSH_COMMAND="ssh -i ~/.ssh/weekschema_deploy_key" \
-  git clone git@github.com:<jouw-account>/weekschema.git .
-git config core.sshCommand "ssh -i ~/.ssh/weekschema_deploy_key"
 ```
 
 ## 3. Twingate: Remote Network + Connector aanmaken
@@ -169,10 +162,9 @@ Ken deze service account toegang toe tot de **Weekschema SSH**-resource uit
 stap 6 (via een Access Policy/Security Policy op die resource, niet meer).
 Zo kan de CI-runner straks alleen bij SSH op de Pi, niets anders.
 
-## 8. GitHub: SSH-sleutel voor de deploy-stap (Sleutel B)
+## 8. GitHub: SSH-sleutel voor de deploy-stap
 
-Lokaal of op de Pi, maak een **apart** sleutelpaar (niet hetzelfde als
-sleutel A hierboven):
+Lokaal of op de Pi, maak een sleutelpaar aan speciaal voor deze CI-stap:
 
 ```bash
 ssh-keygen -t ed25519 -f ./github_deploy_key -N ""
