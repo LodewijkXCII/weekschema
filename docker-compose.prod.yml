@@ -46,8 +46,13 @@ services:
     image: twingate/connector:latest
     restart: unless-stopped
     network_mode: host
-    sysctls:
-      net.ipv4.ping_group_range: "0 2147483647"
+    # Geen `sysctls:` hier -- met network_mode: host deelt de container de
+    # ECHTE netwerk-namespace van de Pi, en Docker weigert dan sysctls te
+    # zetten (die zouden de host zelf raken, niet een geïsoleerde namespace).
+    # net.ipv4.ping_group_range is puur voor Twingate's ICMP-ping-diagnostiek,
+    # niet nodig voor de tunnel zelf. Wil je 'm alsnog: zet 'm op de Pi zelf
+    # (`sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"`, evt.
+    # persistent via /etc/sysctl.d/).
     environment:
       TWINGATE_NETWORK: ${TWINGATE_NETWORK}
       TWINGATE_ACCESS_TOKEN: ${TWINGATE_ACCESS_TOKEN}
