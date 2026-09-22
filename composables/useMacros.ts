@@ -24,3 +24,28 @@ export function recipePerPortie(recipe: any): Macros {
   const porties = recipe?.porties || 1;
   return { kcal: totals.kcal / porties, eiwit: totals.eiwit / porties, vet: totals.vet / porties, kh: totals.kh / porties };
 }
+
+// Macro's voor een los ingrediënt van `gram` gram.
+export function ingredientMacros(ingredient: any, gram: number): Macros {
+  const factor = gram / 100;
+  return {
+    kcal: ingredient.kcalPer100g * factor,
+    eiwit: ingredient.eiwitPer100g * factor,
+    vet: ingredient.vetPer100g * factor,
+    kh: ingredient.koolhydratenPer100g * factor
+  };
+}
+
+// Een weekbord-vakje bevat óf een recept (1 portie) óf één los ingrediënt
+// (bv. een handje noten) -- dit geeft in beide gevallen de macro's.
+export function slotMacros(slot: any): Macros {
+  if (slot?.recipe) return recipePerPortie(slot.recipe);
+  if (slot?.ingredient && slot.ingredientHoeveelheidGram) {
+    return ingredientMacros(slot.ingredient, slot.ingredientHoeveelheidGram);
+  }
+  return emptyMacros();
+}
+
+export function isSlotFilled(slot: any) {
+  return !!(slot?.recipeId || slot?.ingredientId);
+}
