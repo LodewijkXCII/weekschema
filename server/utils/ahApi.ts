@@ -69,6 +69,7 @@ export interface AhProductMatch {
   eiwitPer100g: number;
   vetPer100g: number;
   koolhydratenPer100g: number;
+  bron: "ah";
 }
 
 export async function searchAhProducts(query: string, limit = 8): Promise<AhProductMatch[]> {
@@ -102,7 +103,8 @@ export async function searchAhProducts(query: string, limit = 8): Promise<AhProd
           inhoud: p.salesUnitSize ?? null,
           afbeeldingUrl: p.images?.find((i: any) => i.width === 200)?.url ?? p.images?.[0]?.url ?? null,
           winkelCategorie: p.mainCategory ?? null,
-          ...macros
+          ...macros,
+          bron: "ah" as const
         };
       } catch {
         return null;

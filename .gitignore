@@ -7,3 +7,10 @@ dist
 uploads/*
 !uploads/.gitkeep
 .claude/settings.local.json
+
+# NEVO-databestand (RIVM/Voedingscentrum) -- vereist het accepteren van
+# gebruiksvoorwaarden op rivm.nl om te downloaden, dus bewust niet
+# meegecommit naar deze publieke repo. Zelf plaatsen in server/utils/NEVO/
+# op elke omgeving waar je 'm wil gebruiken (zie DEPLOY.md); ontbreekt 'ie,
+# dan valt de ingrediënt-zoekfunctie gewoon terug op alleen Albert Heijn.
+server/utils/NEVO/

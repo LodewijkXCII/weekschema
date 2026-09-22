@@ -1,11 +1,6 @@
 <template>
   <div class="mx-auto max-w-[560px] px-4 py-6 lg:px-6">
-    <header class="mb-6 flex items-center gap-3">
-      <span class="bg-hero text-primary-foreground grid size-11 place-items-center rounded-2xl">
-        <SlidersHorizontal class="size-5" />
-      </span>
-      <h1 class="font-display text-2xl font-bold text-foreground">Instellingen</h1>
-    </header>
+    <PageHeader :icon="SlidersHorizontal" title="Instellingen" />
 
     <div class="mb-2 flex items-center justify-between">
       <p class="text-sm font-medium">Doelprofielen (dagelijkse maximale nutriënten)</p>
@@ -18,57 +13,15 @@
     </p>
 
     <div v-if="addingNew" class="mb-3 space-y-3 rounded-2xl border border-border bg-card p-4 shadow-soft">
-      <label class="block">
-        <span class="text-xs font-medium text-muted-foreground">Naam</span>
-        <input v-model="newProfile.naam" placeholder="bv. Ouders" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-      </label>
-      <div class="grid grid-cols-2 gap-3">
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Kcal</span>
-          <input v-model.number="newProfile.maxKcal" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Eiwit (g)</span>
-          <input v-model.number="newProfile.maxEiwit" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Vet (g)</span>
-          <input v-model.number="newProfile.maxVet" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Koolhydraten (g)</span>
-          <input v-model.number="newProfile.maxKoolhydraten" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-      </div>
+      <TargetProfileFields v-model="newProfile" name-placeholder="bv. Ouders" />
       <p v-if="newError" class="text-sm text-destructive">{{ newError }}</p>
       <button type="button" class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50" :disabled="loading" @click="createProfile">
         Profiel aanmaken
       </button>
     </div>
 
-    <div v-for="p in profiles" :key="p.id" class="mb-3 space-y-3 rounded-2xl border border-border bg-card p-4 shadow-soft">
-      <label class="block">
-        <span class="text-xs font-medium text-muted-foreground">Naam</span>
-        <input v-model="p.naam" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring" />
-      </label>
-      <div class="grid grid-cols-2 gap-3">
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Kcal</span>
-          <input v-model.number="p.maxKcal" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Eiwit (g)</span>
-          <input v-model.number="p.maxEiwit" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Vet (g)</span>
-          <input v-model.number="p.maxVet" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-        <label class="block">
-          <span class="text-xs font-medium text-muted-foreground">Koolhydraten (g)</span>
-          <input v-model.number="p.maxKoolhydraten" type="number" class="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-        </label>
-      </div>
+    <div v-for="(p, i) in profiles" :key="p.id" class="mb-3 space-y-3 rounded-2xl border border-border bg-card p-4 shadow-soft">
+      <TargetProfileFields v-model="profiles[i]" />
       <p v-if="savedId === p.id" class="text-sm text-primary">Opgeslagen.</p>
       <p v-if="errorId === p.id" class="text-sm text-destructive">{{ errorMessage }}</p>
       <div class="flex gap-2">
@@ -112,8 +65,8 @@ const newProfile = reactive({ naam: "", maxKcal: 2000, maxEiwit: 120, maxVet: 70
 const newError = ref("");
 
 onMounted(async () => {
-  profiles.value = await $fetch("/api/targets" as any);
-  household.value = await $fetch("/api/household" as any);
+  profiles.value = await $fetch<any>("/api/targets" as any);
+  household.value = await $fetch<any>("/api/household" as any);
 });
 
 async function saveProfile(p: any) {
@@ -163,7 +116,7 @@ async function createProfile() {
   }
   loading.value = true;
   try {
-    const created = await $fetch("/api/targets" as any, { method: "POST", body: { ...newProfile } });
+    const created = await $fetch<any>("/api/targets" as any, { method: "POST", body: { ...newProfile } });
     profiles.value.push(created);
     addingNew.value = false;
     newProfile.naam = "";

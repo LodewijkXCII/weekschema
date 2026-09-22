@@ -105,6 +105,13 @@
   }
 }
 
+/* Standaard tekst-/getalveld in formulieren (zie components/FormField.vue). */
+@layer components {
+  .form-input {
+    @apply w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -121,6 +128,8 @@ h1, h2, h3 {
   font-family: var(--font-display-family);
 }
 
-a {
-  color: var(--primary);
+@layer base {
+  a {
+    color: var(--primary);
+  }
 }

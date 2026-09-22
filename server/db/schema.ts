@@ -20,6 +20,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { user } from "./auth-schema";
+import type { IngredientUnitKey } from "../utils/ingredientUnits";
 
 // A household is the shared unit that owns recipes, ingredients and week
 // plans -- e.g. two partners planning meals together.
@@ -69,6 +70,12 @@ export const ingredients = pgTable("ingredients", {
   // Vrije allergie-/dieet-tags (bv. "gluten", "lactose", "noten"), puur
   // informatief -- getoond als badges bij een recept.
   allergenen: text("allergenen").array(),
+  // Gewicht van 1 stuk (bv. 1 appel ≈ 180g, 1 teen knoflook ≈ 5g) -- alleen
+  // ingevuld als je dit ingrediënt met de eenheid "stuks" wil kunnen
+  // gebruiken in recepten. Anders dan de vaste eenheden (eetlepel = altijd
+  // 15g) is dit per ingrediënt totaal verschillend, dus geen generieke
+  // omrekenfactor mogelijk zoals bij de rest van IngredientUnitKey.
+  gramPerStuk: real("gram_per_stuk"),
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
@@ -102,7 +109,16 @@ export const recipeIngredients = pgTable("recipe_ingredients", {
   ingredientId: uuid("ingredient_id")
     .notNull()
     .references(() => ingredients.id, { onDelete: "restrict" }),
-  hoeveelheidGram: real("hoeveelheid_gram").notNull()
+  // Altijd de bron van waarheid voor macro-berekeningen (zie CLAUDE.md) --
+  // wordt server-side uit hoeveelheid+eenheid herberekend, nooit
+  // rechtstreeks vertrouwd vanuit de client.
+  hoeveelheidGram: real("hoeveelheid_gram").notNull(),
+  // Wat je daadwerkelijk hebt ingevoerd/gebruikt tijdens het koken (bv. "2
+  // eetlepel") -- puur voor weergave in de receptdetails. Nullable: oudere
+  // recepten (van vóór dit veld bestond) hebben dit niet, dan valt de UI
+  // terug op hoeveelheidGram/"gram".
+  hoeveelheid: real("hoeveelheid"),
+  eenheid: text("eenheid").$type<IngredientUnitKey>()
 });
 
 // Duimpje omhoog/omlaag per gebruiker per recept -- lichtgewicht feedback,

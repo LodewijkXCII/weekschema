@@ -29,6 +29,20 @@
       "when": 1788466692367,
       "tag": "0003_zippy_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790026721563,
+      "tag": "0004_chief_switch",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790027524560,
+      "tag": "0005_little_ogun",
+      "breakpoints": true
     }
   ]
 }

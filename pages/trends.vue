@@ -1,27 +1,17 @@
 <template>
   <div class="mx-auto max-w-[760px] px-4 py-6 lg:px-6">
-    <header class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <span class="bg-hero text-primary-foreground grid size-11 place-items-center rounded-2xl">
-          <TrendingUp class="size-5" />
-        </span>
-        <h1 class="font-display text-2xl font-bold text-foreground">Trends</h1>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <select v-model.number="weken" class="rounded-xl border border-border bg-card px-2 py-2 text-sm font-medium outline-none">
-          <option :value="4">Laatste 4 weken</option>
-          <option :value="8">Laatste 8 weken</option>
-          <option :value="12">Laatste 12 weken</option>
-          <option :value="26">Laatste 26 weken</option>
-        </select>
-        <select v-if="targetProfiles.length > 1" v-model="activeProfileId" class="rounded-xl border border-border bg-card px-2 py-2 text-sm font-medium outline-none">
-          <option v-for="p in targetProfiles" :key="p.id" :value="p.id">{{ p.naam }}</option>
-        </select>
-        <NuxtLink to="/" class="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-secondary">
-          <ArrowLeft class="size-4" /> Terug naar weekbord
-        </NuxtLink>
-      </div>
-    </header>
+    <PageHeader :icon="TrendingUp" title="Trends">
+      <select v-model.number="weken" class="rounded-xl border border-border bg-card px-2 py-2 text-sm font-medium outline-none">
+        <option :value="4">Laatste 4 weken</option>
+        <option :value="8">Laatste 8 weken</option>
+        <option :value="12">Laatste 12 weken</option>
+        <option :value="26">Laatste 26 weken</option>
+      </select>
+      <TargetProfileSelect v-model="activeProfileId" :profiles="targetProfiles" />
+      <NuxtLink to="/" class="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-secondary">
+        <ArrowLeft class="size-4" /> Terug naar weekbord
+      </NuxtLink>
+    </PageHeader>
 
     <div v-if="loading" class="text-sm text-muted-foreground">Laden…</div>
     <div v-else-if="dagen.length === 0" class="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground shadow-soft">
@@ -65,14 +55,14 @@
 
 <script setup lang="ts">
 import { TrendingUp, ArrowLeft } from "lucide-vue-next";
+import { useTargetProfiles } from "~/composables/useTargetProfiles";
 
 interface DagTotaal { datum: string; kcal: number; eiwit: number; vet: number; kh: number }
 
 const weken = ref(8);
 const dagen = ref<DagTotaal[]>([]);
 const loading = ref(true);
-const targetProfiles = ref<any[]>([]);
-const activeProfileId = ref("");
+const { targetProfiles, activeProfileId, targets: activeTarget, loadTargets } = useTargetProfiles();
 
 const chartWidth = 600;
 const chartHeight = 120;
@@ -83,12 +73,6 @@ const metrics = [
   { key: "kh" as const, label: "Koolhydraten", eenheid: "g", kleur: "var(--carbs)", targetKey: "maxKoolhydraten" as const },
   { key: "vet" as const, label: "Vet", eenheid: "g", kleur: "var(--fat)", targetKey: "maxVet" as const }
 ];
-
-const activeTarget = computed(
-  () =>
-    targetProfiles.value.find((t) => t.id === activeProfileId.value) ??
-    targetProfiles.value[0] ?? { maxKcal: 2000, maxEiwit: 120, maxVet: 70, maxKoolhydraten: 200 }
-);
 
 function targetFor(key: keyof DagTotaal) {
   const metric = metrics.find((m) => m.key === key)!;
@@ -132,15 +116,8 @@ function formatDatum(iso: string) {
 
 async function loadTrends() {
   loading.value = true;
-  dagen.value = await $fetch("/api/trends" as any, { params: { weken: weken.value } });
+  dagen.value = await $fetch<any>("/api/trends" as any, { params: { weken: weken.value } });
   loading.value = false;
-}
-
-async function loadTargets() {
-  targetProfiles.value = await $fetch("/api/targets" as any);
-  const stored = localStorage.getItem("weekschema-active-profile");
-  activeProfileId.value =
-    stored && targetProfiles.value.some((t) => t.id === stored) ? stored : (targetProfiles.value[0]?.id ?? "");
 }
 
 watch(weken, loadTrends);

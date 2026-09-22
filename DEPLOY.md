@@ -92,6 +92,20 @@ git clone https://github.com/LodewijkXCII/weekschema.git /opt/weekschema
 cd /opt/weekschema
 ```
 
+**Optioneel -- NEVO-databestand** (fallback-voedingswaarden bij het
+toevoegen/bewerken van ingrediënten, voor generieke producten die AH niet
+heeft): dit bestand staat *niet* in git (het vereist het accepteren van
+RIVM's gebruiksvoorwaarden, zie
+[rivm.nl/nederlands-voedingsstoffenbestand](https://www.rivm.nl/nederlands-voedingsstoffenbestand)),
+dus kopieer het los naar de Pi, bv. vanaf je dev-machine:
+
+```bash
+scp -r server/utils/NEVO pi@<pi-lan-ip>:/opt/weekschema/server/utils/NEVO
+```
+
+Ontbreekt dit, dan werkt de rest van de app gewoon door -- de
+ingrediënt-zoekfunctie valt dan automatisch terug op alleen Albert Heijn.
+
 ## 3. Twingate: Remote Network + Connector aanmaken
 
 In de Twingate admin console (`<jouw-tenant>.twingate.com`):

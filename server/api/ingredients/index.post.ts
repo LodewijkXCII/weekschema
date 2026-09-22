@@ -11,6 +11,7 @@ interface Body {
   winkelCategorie?: string | null;
   basisvoorraad?: boolean;
   allergenen?: string[];
+  gramPerStuk?: number | null;
 }
 
 export default defineEventHandler(async (event) => {
@@ -32,7 +33,8 @@ export default defineEventHandler(async (event) => {
       koolhydratenPer100g: body.koolhydratenPer100g ?? 0,
       winkelCategorie: body.winkelCategorie ?? null,
       basisvoorraad: body.basisvoorraad ?? false,
-      allergenen: body.allergenen?.filter((a) => a.trim()).map((a) => a.trim().toLowerCase()) ?? null
+      allergenen: body.allergenen?.filter((a) => a.trim()).map((a) => a.trim().toLowerCase()) ?? null,
+      gramPerStuk: body.gramPerStuk || null
     })
     .returning();
 

@@ -13,6 +13,16 @@ const ALLOWED_IMAGE_TYPES: Record<string, true> = {
 };
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
+// Rondt af op een hoeveelheid die je ook echt zo zou afwegen/kopen -- een
+// AI-omrekening van bv. "2 pounds" komt op 908g uit, maar niemand haalt
+// exact 908g bij de winkel; dat wordt dan 900g. De afrondstap schaalt mee
+// met de grootte: bij kleine hoeveelheden (kruiden, snufjes) blijft elke
+// gram ertoe doen, bij grotere hoeveelheden mag het grover.
+function afrondenOpVriendelijkGetal(grammen: number): number {
+  const stap = grammen < 10 ? 1 : grammen < 50 ? 5 : grammen < 200 ? 10 : grammen < 1000 ? 25 : 50;
+  return Math.max(1, Math.round(grammen / stap) * stap);
+}
+
 // POST /api/recipes/extract -- haalt een recept-concept uit een URL, geplakte
 // tekst, of een foto (multipart), en matcht de gevonden ingrediënten alvast
 // tegen de bestaande ingrediëntenbibliotheek van dit huishouden.
@@ -28,16 +38,38 @@ export default defineEventHandler(async (event) => {
     where: eq(ingredients.householdId, householdId)
   });
   const norm = (s: string) => s.toLowerCase().trim();
+  const eersteWoord = (s: string) => norm(s).split(/[\s,-]+/)[0] ?? "";
 
   const ingredienten = extracted.ingredienten.map((ing) => {
     const naamNorm = norm(ing.naam);
-    const match =
-      householdIngredients.find((e) => norm(e.naam) === naamNorm) ??
-      householdIngredients.find((e) => naamNorm.includes(norm(e.naam)) || norm(e.naam).includes(naamNorm));
+    // Alleen een écht exacte naam wordt automatisch gekoppeld. Een
+    // bevat-relatie (bv. "sweet soy sauce" bevat "soy sauce" als complete
+    // woorden) betekent niet betrouwbaar hetzelfde product met dezelfde
+    // macro's -- dat werd hiervoor ten onrechte alsnog automatisch
+    // gekoppeld, waardoor twee verschillende ingrediënten uit hetzelfde
+    // recept stilzwijgend aan één bestaand ingrediënt vastzaten.
+    const match = householdIngredients.find((e) => norm(e.naam) === naamNorm);
+
+    // Geen exacte match, maar wel een bevat-relatie of hetzelfde eerste
+    // woord (bv. "Sojasaus zoet" vs. een bestaande "Sojasaus donker") --
+    // dat kán hetzelfde product zijn, maar kan ook net andere macro's
+    // hebben, dus dit wordt een keuze-suggestie i.p.v. automatisch
+    // samengevoegd.
+    const suggestie = match
+      ? null
+      : (householdIngredients.find((e) => {
+          const eNorm = norm(e.naam);
+          return naamNorm.includes(eNorm) || eNorm.includes(naamNorm);
+        }) ??
+        householdIngredients.find((e) => eersteWoord(e.naam) === eersteWoord(ing.naam) && eersteWoord(e.naam)) ??
+        null);
+
     return {
       naam: ing.naam,
-      hoeveelheidGram: Math.max(1, Math.round(ing.hoeveelheidGram)),
-      ingredientId: match?.id ?? null
+      hoeveelheidGram: afrondenOpVriendelijkGetal(ing.hoeveelheidGram),
+      ingredientId: match?.id ?? null,
+      suggestieId: suggestie?.id ?? null,
+      suggestieNaam: suggestie?.naam ?? null
     };
   });
 

@@ -84,12 +84,12 @@ async function submit() {
 
   try {
     if (mode.value === "create") {
-      await $fetch("/api/household/create" as any, {
+      await $fetch<any>("/api/household/create" as any, {
         method: "POST",
         body: { naam: householdName.value || "Ons huishouden" }
       });
     } else {
-      await $fetch("/api/household/join" as any, {
+      await $fetch<any>("/api/household/join" as any, {
         method: "POST",
         body: { inviteCode: inviteCode.value }
       });

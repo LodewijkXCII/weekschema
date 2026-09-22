@@ -61,9 +61,14 @@ const SYSTEM_PROMPT = `Je zet een kookrecept (uit tekst of een foto) om naar ges
 Regels:
 - "categorie" is exact een van: "ontbijt", "lunch", "diner", "tussendoor" -- kies wat het meest logisch is voor dit gerecht.
 - "porties" is een geheel getal (waarvoor het recept standaard bedoeld is). Gebruik 1 als dit niet duidelijk is.
-- "hoeveelheidGram" is altijd in grammen, ook voor vloeistoffen (reken 1 ml ≈ 1 g). Zet vage hoeveelheden ("een snufje", "1 teentje", "naar smaak") om naar een redelijke schatting in grammen.
+- "hoeveelheidGram" is altijd in grammen -- reken elke andere eenheid om, ook uit Engelstalige/Amerikaanse bronnen:
+  - Vloeistoffen: 1 ml ≈ 1 g, 1 liter = 1000 g.
+  - "Cup" (Amerikaans): ≈ 240 g voor vloeistoffen, maar voor droge ingrediënten hangt het af van het ingrediënt (bv. 1 cup bloem ≈ 120 g, 1 cup suiker ≈ 200 g, 1 cup rijst (droog) ≈ 190 g) -- gebruik een realistische dichtheid per ingrediënt, cups zijn geen vaste 240 g voor alles.
+  - Eetlepel/tablespoon (tbsp) ≈ 15 g/ml, theelepel/teaspoon (tsp) ≈ 5 g/ml, snufje/pinch ≈ 0,5 g.
+  - Pound/lb ≈ 454 g, ounce/oz ≈ 28 g.
+  - Vage hoeveelheden ("1 teentje", "naar smaak") -> een redelijke schatting in grammen.
 - Laat ingrediënten zonder zinnige hoeveelheid (bv. "naar smaak serveren met...") weg.
-- "bereiding" is de bereidingswijze als doorlopende tekst, of null als die ontbreekt.
+- "bereiding" is de bereidingswijze als doorlopende tekst, of null als die ontbreekt. Noemt de tekst een oventemperatuur: reken Fahrenheit om naar Celsius indien nodig, en rond af op de dichtstbijzijnde 5 graden Celsius (bv. 350°F -> 175°C, 177°C -> 175°C).
 - Vertaal alles naar het Nederlands, ook als de brontekst een andere taal gebruikt.
 - Geef uitsluitend de gevraagde JSON terug.`;
 

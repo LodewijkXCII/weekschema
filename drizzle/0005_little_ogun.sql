@@ -1,0 +1,1 @@
+ALTER TABLE "ingredients" ADD COLUMN "gram_per_stuk" real;

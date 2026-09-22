@@ -1,19 +1,14 @@
 <template>
   <div class="mx-auto max-w-[900px] px-4 py-6 lg:px-6">
-    <header class="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <span class="bg-hero text-primary-foreground grid size-11 place-items-center rounded-2xl">
-          <ShoppingCart class="size-5" />
-        </span>
-        <div>
-          <h1 class="font-display text-2xl font-bold text-foreground">Boodschappenlijst</h1>
-          <p class="text-sm text-muted-foreground">Automatisch uit je planning · {{ checkedCount }}/{{ shoppingList.length }} afgevinkt</p>
-        </div>
-      </div>
+    <PageHeader
+      :icon="ShoppingCart"
+      title="Boodschappenlijst"
+      :subtitle="`Automatisch uit je planning · ${checkedCount}/${shoppingList.length} afgevinkt`"
+    >
       <NuxtLink :to="`/?week=${isoDate(weekStart)}`" class="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-secondary">
         <ArrowLeft class="size-4" /> Planner
       </NuxtLink>
-    </header>
+    </PageHeader>
 
     <div class="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-3 py-2 shadow-soft">
       <button type="button" aria-label="Vorige week" class="grid size-9 place-items-center rounded-xl border border-border transition-colors hover:bg-secondary" @click="shiftWeek(-1)">
@@ -50,16 +45,9 @@
               <p class="truncate text-sm font-medium">{{ entry.recipe.naam }}</p>
               <p class="mt-0.5 text-xs text-muted-foreground">{{ entry.occurrences }}× deze week · standaard {{ entry.recipe.porties }} portie(s)</p>
             </div>
-            <div class="flex shrink-0 items-center gap-1.5">
-              <button type="button" class="grid size-7 place-items-center rounded-lg border border-border hover:bg-secondary" @click="adjustPortions(entry.recipe.id, -0.5)">
-                <Minus class="size-3.5" />
-              </button>
-              <input type="number" step="0.5" min="0.5" v-model.number="portions[entry.recipe.id]" class="w-16 rounded-lg border border-border bg-background px-1 py-1 text-center text-sm tabular-nums outline-none focus:ring-2 focus:ring-ring" />
-              <button type="button" class="grid size-7 place-items-center rounded-lg border border-border hover:bg-secondary" @click="adjustPortions(entry.recipe.id, 0.5)">
-                <Plus class="size-3.5" />
-              </button>
+            <PortionStepper v-model="portions[entry.recipe.id]" class="shrink-0">
               <span class="text-xs text-muted-foreground">pers.</span>
-            </div>
+            </PortionStepper>
           </div>
         </div>
 
@@ -103,16 +91,12 @@
 </template>
 
 <script setup lang="ts">
-import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Minus, Plus, Copy } from "lucide-vue-next";
-import { mondayOf, isoDate, formatWeekDate } from "~/composables/useWeek";
+import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Copy } from "lucide-vue-next";
+import { isoDate, formatWeekDate, weekStartFromQuery } from "~/composables/useWeek";
 
 const route = useRoute();
 
-const weekStart = ref(
-  typeof route.query.week === "string" && /^\d{4}-\d{2}-\d{2}$/.test(route.query.week)
-    ? new Date(route.query.week + "T00:00:00")
-    : mondayOf(new Date())
-);
+const weekStart = ref(weekStartFromQuery(route.query.week));
 
 const plan = ref<any>(null);
 const portions = reactive<Record<string, number>>({});
@@ -151,11 +135,6 @@ function weekRecipesFrom(planData: any) {
 }
 
 const weekRecipes = computed(() => weekRecipesFrom(plan.value));
-
-function adjustPortions(recipeId: string, delta: number) {
-  const next = (portions[recipeId] ?? 0.5) + delta;
-  portions[recipeId] = Math.max(0.5, Math.round(next * 2) / 2);
-}
 
 interface ShoppingItem {
   naam: string;

@@ -47,7 +47,7 @@ const navItems = [
   { to: "/", label: "Week", icon: CalendarDays },
   { to: "/boodschappen", label: "Boodschappen", icon: ShoppingCart },
   { to: "/recipes", label: "Recepten", icon: ChefHat },
-  { to: "/ingredients/new", label: "Ingrediënt", icon: Beef },
+  { to: "/ingredients", label: "Ingrediënten", icon: Beef },
   { to: "/trends", label: "Trends", icon: TrendingUp },
   { to: "/kiosk", label: "Kiosk", icon: MonitorPlay },
   { to: "/settings", label: "Instellingen", icon: Settings }

@@ -24,3 +24,14 @@ export const WEEK_DAGEN = [
   { key: "zaterdag", label: "Zaterdag" },
   { key: "zondag", label: "Zondag" }
 ] as const;
+
+export const RECIPE_CATEGORIEEN = ["ontbijt", "lunch", "diner", "tussendoor"] as const;
+export type RecipeCategorie = (typeof RECIPE_CATEGORIEEN)[number];
+
+// Twee momenten heten allebei "Tussendoor" -- in een rij-/kolomkop willen we
+// ze wel uit elkaar kunnen houden.
+export function momentRowLabel(moment: { key: string; label: string }) {
+  if (moment.key === "tussendoor_1") return "Tussendoor 1";
+  if (moment.key === "tussendoor_2") return "Tussendoor 2";
+  return moment.label;
+}

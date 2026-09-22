@@ -23,6 +23,52 @@ export function assertSafeImportUrl(raw: string): URL {
   return url;
 }
 
+async function fetchHtml(url: URL): Promise<string | null> {
+  const res = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; WeekschemaRecipeImport/1.0)" },
+    signal: AbortSignal.timeout(15000)
+  }).catch(() => null);
+  if (!res || !res.ok) return null;
+  return res.text();
+}
+
+const PINTEREST_HOSTS = new Set(["pinterest.com", "www.pinterest.com", "pin.it"]);
+// Domeinen waar het niet zinvol is de outbound link naartoe te volgen --
+// meestal een inlogmuur of geen bruikbare paginatekst voor niet-ingelogde
+// bezoekers.
+const UNHELPFUL_OUTBOUND_HOSTS = new Set([
+  "facebook.com",
+  "www.facebook.com",
+  "instagram.com",
+  "www.instagram.com",
+  "pinterest.com",
+  "www.pinterest.com"
+]);
+
+// Pinterest-pagina's zijn een client-side gerenderde React-app -- de
+// zichtbare/statische HTML bevat vrijwel geen tekst (alles zit in een
+// hydration-script), en de pin-beschrijving die daar wél in staat is door
+// Pinterest zelf afgekapt tot een korte preview, nooit het volledige
+// recept. Het echte recept staat op de site waar de pin naar doorlinkt --
+// die outbound-link zit als "link":"https://..." ergens in de pagina.
+function extractPinterestOutboundLink(html: string): URL | null {
+  const match = html.match(/"link":"((?:[^"\\]|\\.)*)"/);
+  if (!match) return null;
+  let raw: string;
+  try {
+    raw = JSON.parse(`"${match[1]}"`);
+  } catch {
+    return null;
+  }
+  try {
+    const url = new URL(raw);
+    if (UNHELPFUL_OUTBOUND_HOSTS.has(url.hostname.toLowerCase())) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchPageTextForExtraction(rawUrl: string): Promise<string> {
   const url = assertSafeImportUrl(rawUrl);
 
@@ -35,7 +81,26 @@ export async function fetchPageTextForExtraction(rawUrl: string): Promise<string
     throw createError({ statusCode: 502, statusMessage: "Kon de pagina niet ophalen" });
   }
 
+  const finalHost = new URL(res.url).hostname.toLowerCase();
   const html = await res.text();
+
+  if (PINTEREST_HOSTS.has(finalHost)) {
+    const outbound = extractPinterestOutboundLink(html);
+    if (outbound) {
+      try {
+        const safeOutbound = assertSafeImportUrl(outbound.toString());
+        const outboundHtml = await fetchHtml(safeOutbound);
+        if (outboundHtml) {
+          const extracted = extractRecipeJsonLd(outboundHtml) ?? stripHtmlToText(outboundHtml).slice(0, 8000);
+          if (extracted.length > 200) return extracted;
+        }
+      } catch {
+        // Outbound-link bleek zelf niet toegestaan (bv. interne/lokale URL)
+        // -- gewoon terugvallen op Pinterest's eigen (beperktere) pagina.
+      }
+    }
+  }
+
   return extractRecipeJsonLd(html) ?? stripHtmlToText(html).slice(0, 8000);
 }
 
