@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[2px]" @click="$emit('close')">
+    <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]" @click="$emit('close')">
       <div class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-lift" @click.stop>
         <div class="mb-4 flex items-center justify-between">
           <h2 class="font-display text-lg font-bold">Ingrediënt toevoegen</h2>

@@ -10,6 +10,15 @@
           <p class="font-display text-4xl font-bold tabular-nums text-foreground lg:text-5xl">{{ clock }}</p>
           <p class="text-xs text-muted-foreground lg:text-sm">ververst automatisch</p>
         </div>
+        <button
+          type="button"
+          :title="theme === 'dark' ? 'Licht thema' : 'Donker thema'"
+          class="grid size-12 flex-none place-items-center rounded-2xl border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+          @click="toggleTheme"
+        >
+          <Sun v-if="theme === 'dark'" class="size-6" />
+          <Moon v-else class="size-6" />
+        </button>
         <NuxtLink to="/" class="grid size-12 flex-none place-items-center rounded-2xl border border-border bg-card text-muted-foreground no-underline transition-colors hover:text-foreground">
           <X class="size-6" />
         </NuxtLink>
@@ -60,11 +69,13 @@
 </template>
 
 <script setup lang="ts">
-import { X } from "lucide-vue-next";
+import { X, Sun, Moon } from "lucide-vue-next";
 import { MEAL_MOMENTS, WEEK_DAGEN, momentRowLabel } from "~/composables/useMealMoments";
 import { mondayOf, isoDate, dateForDag, formatDayDate } from "~/composables/useWeek";
 
 definePageMeta({ layout: "kiosk" });
+
+const { theme, toggle: toggleTheme } = useKioskTheme();
 
 // Elke dag van de week is een eigen letterlijke sleutel (geen datum-diff),
 // dus "vandaag" bepalen we via JS' eigen getDay() los van WEEK_DAGEN.

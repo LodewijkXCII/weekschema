@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <div v-if="recipe" class="fixed inset-0 z-50 flex justify-end bg-foreground/40 backdrop-blur-[2px]" @click="$emit('close')">
+    <div v-if="recipe" class="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[2px]" @click="$emit('close')">
       <aside class="relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-border bg-card p-5 shadow-lift" @click.stop>
         <button type="button" class="absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground hover:bg-secondary" @click="$emit('close')">
           <X class="size-4" />
