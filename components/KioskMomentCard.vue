@@ -23,6 +23,23 @@
         </p>
       </div>
     </div>
+    <!-- Los ingrediënt (bv. een handje noten): geen recept om te openen. -->
+    <div v-else-if="mealSlot?.ingredient" class="flex min-h-0 flex-1 flex-col">
+      <div class="flex min-h-0 flex-1 items-center justify-center bg-secondary/70">
+        <Apple class="size-12 text-primary" />
+      </div>
+      <div class="flex-none p-3 lg:p-4">
+        <p class="truncate text-base font-medium lg:text-lg" :title="mealSlot.ingredient.naam">
+          {{ mealSlot.ingredient.naam }}
+        </p>
+        <p class="mt-1 text-sm tabular-nums text-muted-foreground">
+          {{ formatHoeveelheid(mealSlot.ingredientHoeveelheid, mealSlot.ingredientEenheid) }} · {{ Math.round(slotMacros(mealSlot).kcal) }} kcal
+        </p>
+        <p v-if="mealSlot.notitie" class="mt-1.5 flex items-start gap-1.5 text-sm text-accent">
+          <StickyNote class="mt-0.5 size-4 shrink-0" /> {{ mealSlot.notitie }}
+        </p>
+      </div>
+    </div>
     <div v-else class="flex flex-1 items-center justify-center p-3 text-center">
       <p class="text-sm text-muted-foreground/50">Nog niet gepland</p>
     </div>
@@ -30,8 +47,9 @@
 </template>
 
 <script setup lang="ts">
-import { StickyNote, User } from "lucide-vue-next";
-import { recipePerPortie } from "~/composables/useMacros";
+import { StickyNote, User, Apple } from "lucide-vue-next";
+import { recipePerPortie, slotMacros } from "~/composables/useMacros";
+import { formatHoeveelheid } from "~/composables/useIngredientUnits";
 
 defineProps<{
   label: string;

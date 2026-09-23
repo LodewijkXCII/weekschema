@@ -207,6 +207,17 @@ export const mealSlots = pgTable(
     recipeId: uuid("recipe_id").references(() => recipes.id, {
       onDelete: "set null"
     }),
+    // Alternatief voor een recept: één los ingrediënt (bv. een handje noten
+    // of een Breaker als tussendoortje). Een vakje heeft óf een recipeId óf
+    // een ingredientId, nooit allebei (afgedwongen in mealslots/index.post.ts).
+    // Zelfde hoeveelheid/eenheid/hoeveelheidGram-opzet als recipeIngredients:
+    // hoeveelheidGram wordt altijd server-side omgerekend.
+    ingredientId: uuid("ingredient_id").references(() => ingredients.id, {
+      onDelete: "set null"
+    }),
+    ingredientHoeveelheid: real("ingredient_hoeveelheid"),
+    ingredientEenheid: text("ingredient_eenheid").$type<IngredientUnitKey>(),
+    ingredientHoeveelheidGram: real("ingredient_hoeveelheid_gram"),
     // Kort briefje bij dit vakje (bv. "extra pittig voor mij").
     notitie: text("notitie"),
     // Wie kookt dit -- verwijst naar een user, niet verplicht.
@@ -257,5 +268,9 @@ export const mealSlotsRelations = relations(mealSlots, ({ one }) => ({
   recipe: one(recipes, {
     fields: [mealSlots.recipeId],
     references: [recipes.id]
+  }),
+  ingredient: one(ingredients, {
+    fields: [mealSlots.ingredientId],
+    references: [ingredients.id]
   })
 }));

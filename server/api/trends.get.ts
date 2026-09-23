@@ -21,7 +21,8 @@ export default defineEventHandler(async (event) => {
     with: {
       slots: {
         with: {
-          recipe: { with: { ingredients: { with: { ingredient: true } } } }
+          recipe: { with: { ingredients: { with: { ingredient: true } } } },
+          ingredient: true
         }
       }
     }
@@ -35,14 +36,22 @@ export default defineEventHandler(async (event) => {
       const dag = weekDagen[i];
       const totals = { kcal: 0, eiwit: 0, vet: 0, kh: 0 };
       for (const slot of plan.slots) {
-        if (slot.dag !== dag || !slot.recipe) continue;
-        const factor = 1 / slot.recipe.porties;
-        for (const ri of slot.recipe.ingredients) {
-          const g = ri.hoeveelheidGram * factor;
-          totals.kcal += (ri.ingredient.kcalPer100g * g) / 100;
-          totals.eiwit += (ri.ingredient.eiwitPer100g * g) / 100;
-          totals.vet += (ri.ingredient.vetPer100g * g) / 100;
-          totals.kh += (ri.ingredient.koolhydratenPer100g * g) / 100;
+        if (slot.dag !== dag) continue;
+        // Recept: alle ingrediënten, gedeeld door het aantal porties. Los
+        // ingrediënt: gewoon die ene hoeveelheid.
+        const regels = slot.recipe
+          ? slot.recipe.ingredients.map((ri) => ({
+              ingredient: ri.ingredient,
+              g: ri.hoeveelheidGram / slot.recipe!.porties
+            }))
+          : slot.ingredient && slot.ingredientHoeveelheidGram
+            ? [{ ingredient: slot.ingredient, g: slot.ingredientHoeveelheidGram }]
+            : [];
+        for (const { ingredient, g } of regels) {
+          totals.kcal += (ingredient.kcalPer100g * g) / 100;
+          totals.eiwit += (ingredient.eiwitPer100g * g) / 100;
+          totals.vet += (ingredient.vetPer100g * g) / 100;
+          totals.kh += (ingredient.koolhydratenPer100g * g) / 100;
         }
       }
       if (totals.kcal === 0) continue;

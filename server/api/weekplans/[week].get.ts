@@ -36,7 +36,8 @@ export default defineEventHandler(async (event) => {
   const slots = await db.query.mealSlots.findMany({
     where: eq(mealSlots.weekPlanId, plan.id),
     with: {
-      recipe: { with: { ingredients: { with: { ingredient: true } } } }
+      recipe: { with: { ingredients: { with: { ingredient: true } } } },
+      ingredient: true
     }
   });
 

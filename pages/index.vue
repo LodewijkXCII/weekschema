@@ -102,9 +102,12 @@
                 <RecipeSearchPopover
                   v-if="mode === 'edit' && activeCell === dag.key + '|' + moment.key"
                   :recipes="recipesForMoment(moment.key)"
+                  :ingredients="ingredients"
                   :categorie-label="RECIPE_CATEGORIE_LABELS[moment.categorie]"
                   :align-right="dag.key === 'zaterdag' || dag.key === 'zondag'"
+                  :default-mode="popoverDefaultMode(dag.key, moment.key)"
                   @choose="chooseRecipe(dag.key, moment.key, $event)"
+                  @choose-ingredient="chooseIngredient(dag.key, moment.key, $event)"
                   @suggest="suggestFromPopover(dag.key, moment.key, $event)"
                   @close="closePopover"
                 />
@@ -137,7 +140,8 @@ import {
 } from "lucide-vue-next";
 import { MEAL_MOMENTS, WEEK_DAGEN, RECIPE_CATEGORIE_LABELS, momentRowLabel } from "~/composables/useMealMoments";
 import { mondayOf, isoDate, formatWeekDate, weekStartFromQuery, dateForDag, formatDayDate } from "~/composables/useWeek";
-import { emptyMacros, recipePerPortie } from "~/composables/useMacros";
+import { emptyMacros, slotMacros, isSlotFilled, ingredientMacros, type Macros } from "~/composables/useMacros";
+import { eenheidNaarGram, type IngredientUnitKey } from "~/composables/useIngredientUnits";
 import { useTargetProfiles } from "~/composables/useTargetProfiles";
 
 const route = useRoute();
@@ -145,6 +149,7 @@ const route = useRoute();
 const weekStart = ref(weekStartFromQuery(route.query.week));
 const plan = ref<any>(null);
 const recipes = ref<any[]>([]);
+const ingredients = ref<any[]>([]);
 const householdMembers = ref<{ userId: string; naam: string }[]>([]);
 const draggedRecipeId = ref<string | null>(null);
 const dragOverKey = ref<string | null>(null);
@@ -157,15 +162,15 @@ const activeCell = ref<string | null>(null);
 const { targetProfiles, activeProfileId, targets, loadTargets } = useTargetProfiles();
 
 const plannedDaysCount = computed(
-  () => WEEK_DAGEN.filter((dag) => MEAL_MOMENTS.some((m) => slotFor(dag.key, m.key)?.recipeId)).length
+  () => WEEK_DAGEN.filter((dag) => MEAL_MOMENTS.some((m) => isSlotFilled(slotFor(dag.key, m.key)))).length
 );
 
 const totalDishesCount = computed(() =>
-  WEEK_DAGEN.reduce((sum, dag) => sum + MEAL_MOMENTS.filter((m) => slotFor(dag.key, m.key)?.recipeId).length, 0)
+  WEEK_DAGEN.reduce((sum, dag) => sum + MEAL_MOMENTS.filter((m) => isSlotFilled(slotFor(dag.key, m.key))).length, 0)
 );
 
 const avgKcalPerDay = computed(() => {
-  const withData = WEEK_DAGEN.filter((dag) => MEAL_MOMENTS.some((m) => slotFor(dag.key, m.key)?.recipeId));
+  const withData = WEEK_DAGEN.filter((dag) => MEAL_MOMENTS.some((m) => isSlotFilled(slotFor(dag.key, m.key))));
   if (!withData.length) return null;
   const total = withData.reduce((sum, dag) => sum + dayTotals(dag.key).kcal, 0);
   return Math.round(total / withData.length);
@@ -194,6 +199,9 @@ async function loadWeek() {
 }
 async function loadRecipes() {
   recipes.value = await $fetch<any[]>("/api/recipes" as any);
+}
+async function loadIngredients() {
+  ingredients.value = await $fetch<any[]>("/api/ingredients" as any);
 }
 async function loadHouseholdMembers() {
   householdMembers.value = await $fetch<any[]>("/api/household/members" as any);
@@ -227,9 +235,7 @@ function dayTotals(dag: string, excludeMoment?: string) {
   const totals = emptyMacros();
   for (const moment of MEAL_MOMENTS) {
     if (moment.key === excludeMoment) continue;
-    const recipe = slotFor(dag, moment.key)?.recipe;
-    if (!recipe) continue;
-    const p = recipePerPortie(recipe);
+    const p = slotMacros(slotFor(dag, moment.key));
     totals.kcal += p.kcal;
     totals.eiwit += p.eiwit;
     totals.vet += p.vet;
@@ -242,11 +248,11 @@ function dagLabel(dag: string) {
   return WEEK_DAGEN.find((d) => d.key === dag)?.label ?? dag;
 }
 
-// Past dit recept nog binnen de dag-doelen, als het in plaats van wat er nu
-// (eventueel) in dit vakje staat wordt gezet?
-function fitsWithinTargets(dag: string, moment: string, recipe: any) {
+// Past dit recept (of los ingrediënt) met macro's `p` nog binnen de
+// dag-doelen, als het in plaats van wat er nu (eventueel) in dit vakje staat
+// wordt gezet?
+function fitsWithinTargets(dag: string, moment: string, p: Macros) {
   const base = dayTotals(dag, moment);
-  const p = recipe.perPortie;
   return (
     base.kcal + p.kcal <= targets.value.maxKcal &&
     base.eiwit + p.eiwit <= targets.value.maxEiwit &&
@@ -271,7 +277,7 @@ async function onDrop(dag: string, moment: string) {
   const recipeId = draggedRecipeId.value;
   draggedRecipeId.value = null;
   const recipe = recipes.value.find((r) => r.id === recipeId);
-  if (recipe && !(await confirmIfExceeds(dag, moment, recipe))) return;
+  if (recipe && !(await confirmIfExceeds(dag, moment, recipe.naam, recipe.perPortie))) return;
   await setSlot(dag, moment, recipeId);
 }
 
@@ -297,7 +303,11 @@ async function onDetailUpdated() {
 }
 
 async function clearSlot(dag: string, moment: string) {
-  await setSlot(dag, moment, null);
+  await $fetch<any>("/api/mealslots" as any, {
+    method: "POST",
+    body: { weekPlanId: plan.value.plan.id, dag, mealMoment: moment, recipeId: null, ingredient: null }
+  });
+  await loadWeek();
 }
 
 async function setSlot(dag: string, moment: string, recipeId: string | null) {
@@ -335,13 +345,13 @@ async function copyPreviousWeek() {
   const prevStart = new Date(weekStart.value);
   prevStart.setDate(prevStart.getDate() - 7);
   const prevPlan = await $fetch<any>(`/api/weekplans/${isoDate(prevStart)}`);
-  const filledPrev = prevPlan.slots.filter((s: any) => s.recipeId);
+  const filledPrev = prevPlan.slots.filter(isSlotFilled);
   if (!filledPrev.length) {
     alert("Vorige week heeft geen ingevulde vakjes om te kopiëren.");
     return;
   }
 
-  const currentFilledCount = plan.value?.slots?.filter((s: any) => s.recipeId).length ?? 0;
+  const currentFilledCount = plan.value?.slots?.filter(isSlotFilled).length ?? 0;
   if (currentFilledCount > 0) {
     const ok = confirm(`Deze week heeft al ${currentFilledCount} ingevulde vakjes. Overschrijven met vorige week?`);
     if (!ok) return;
@@ -350,7 +360,20 @@ async function copyPreviousWeek() {
   for (const slot of filledPrev) {
     await $fetch<any>("/api/mealslots" as any, {
       method: "POST",
-      body: { weekPlanId: plan.value.plan.id, dag: slot.dag, mealMoment: slot.mealMoment, recipeId: slot.recipeId }
+      body: {
+        weekPlanId: plan.value.plan.id,
+        dag: slot.dag,
+        mealMoment: slot.mealMoment,
+        ...(slot.recipeId
+          ? { recipeId: slot.recipeId }
+          : {
+              ingredient: {
+                ingredientId: slot.ingredientId,
+                hoeveelheid: slot.ingredientHoeveelheid,
+                eenheid: slot.ingredientEenheid
+              }
+            })
+      }
     });
   }
   await loadWeek();
@@ -361,7 +384,7 @@ async function autoFillWeek() {
   const emptySlots: { dag: string; moment: string }[] = [];
   for (const dag of WEEK_DAGEN) {
     for (const moment of MEAL_MOMENTS) {
-      if (!slotFor(dag.key, moment.key)?.recipeId) emptySlots.push({ dag: dag.key, moment: moment.key });
+      if (!isSlotFilled(slotFor(dag.key, moment.key))) emptySlots.push({ dag: dag.key, moment: moment.key });
     }
   }
   if (!emptySlots.length) {
@@ -374,7 +397,7 @@ async function autoFillWeek() {
   for (const { dag, moment } of emptySlots) {
     const candidates = recipesForMoment(moment);
     if (!candidates.length) continue;
-    const fitting = candidates.filter((r) => fitsWithinTargets(dag, moment, r));
+    const fitting = candidates.filter((r) => fitsWithinTargets(dag, moment, r.perPortie));
     const pick = randomRecipe(fitting.length ? fitting : candidates);
     if (!pick) continue;
     await setSlot(dag, moment, pick.id);
@@ -386,13 +409,13 @@ function randomRecipe(list: any[]) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
-// Vraagt bevestiging als dit recept de dag-doelen zou overschrijden.
-// Geeft true terug als het recept toegevoegd mag worden (past, of gebruiker
-// heeft toch bevestigd), false als het (nog) niet mag doorgaan.
-async function confirmIfExceeds(dag: string, moment: string, recipe: any) {
-  if (fitsWithinTargets(dag, moment, recipe)) return true;
+// Vraagt bevestiging als dit recept/ingrediënt de dag-doelen zou
+// overschrijden. Geeft true terug als het toegevoegd mag worden (past, of
+// gebruiker heeft toch bevestigd), false als het (nog) niet mag doorgaan.
+async function confirmIfExceeds(dag: string, moment: string, naam: string, p: Macros) {
+  if (fitsWithinTargets(dag, moment, p)) return true;
   return confirm(
-    `"${recipe.naam}" duwt ${dagLabel(dag)} over je macro-doelen heen. Toch toevoegen?`
+    `"${naam}" duwt ${dagLabel(dag)} over je macro-doelen heen. Toch toevoegen?`
   );
 }
 
@@ -400,13 +423,43 @@ function openSearch(dag: string, moment: string) {
   activeCell.value = dag + "|" + moment;
 }
 
+// Tussendoortjes zijn meestal één los ingrediënt (handje noten, een
+// Breaker), dus daar opent de popover meteen op "Ingrediënt" -- tenzij er
+// al een recept in het vakje staat.
+function popoverDefaultMode(dag: string, moment: string) {
+  const slot = slotFor(dag, moment);
+  if (slot?.recipeId) return "recept";
+  if (slot?.ingredientId) return "ingredient";
+  return categorieForMoment(moment) === "tussendoor" ? "ingredient" : "recept";
+}
+
 function closePopover() {
   activeCell.value = null;
 }
 
 async function chooseRecipe(dag: string, moment: string, recipe: any) {
-  if (!(await confirmIfExceeds(dag, moment, recipe))) return;
+  if (!(await confirmIfExceeds(dag, moment, recipe.naam, recipe.perPortie))) return;
   await setSlot(dag, moment, recipe.id);
+  closePopover();
+}
+
+async function chooseIngredient(
+  dag: string,
+  moment: string,
+  { ingredient, hoeveelheid, eenheid }: { ingredient: any; hoeveelheid: number; eenheid: IngredientUnitKey }
+) {
+  const gram = eenheidNaarGram(hoeveelheid, eenheid, ingredient.gramPerStuk);
+  if (!(await confirmIfExceeds(dag, moment, ingredient.naam, ingredientMacros(ingredient, gram)))) return;
+  await $fetch<any>("/api/mealslots" as any, {
+    method: "POST",
+    body: {
+      weekPlanId: plan.value.plan.id,
+      dag,
+      mealMoment: moment,
+      ingredient: { ingredientId: ingredient.id, hoeveelheid, eenheid }
+    }
+  });
+  await loadWeek();
   closePopover();
 }
 
@@ -418,7 +471,7 @@ async function suggestRandom(dag: string, moment: string) {
     return;
   }
 
-  const fitting = candidates.filter((r) => fitsWithinTargets(dag, moment, r));
+  const fitting = candidates.filter((r) => fitsWithinTargets(dag, moment, r.perPortie));
   if (fitting.length) {
     await setSlot(dag, moment, randomRecipe(fitting)!.id);
     return;
@@ -438,7 +491,7 @@ async function suggestFromPopover(dag: string, moment: string, candidates: any[]
     return;
   }
 
-  const fitting = candidates.filter((r) => fitsWithinTargets(dag, moment, r));
+  const fitting = candidates.filter((r) => fitsWithinTargets(dag, moment, r.perPortie));
   if (fitting.length) {
     await setSlot(dag, moment, randomRecipe(fitting)!.id);
     closePopover();
@@ -459,6 +512,7 @@ onMounted(() => {
   if (stored === "edit" || stored === "saved") mode.value = stored;
   loadWeek();
   loadRecipes();
+  loadIngredients();
   loadTargets();
   loadHouseholdMembers();
 });

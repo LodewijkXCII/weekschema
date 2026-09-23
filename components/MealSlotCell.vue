@@ -1,6 +1,6 @@
 <template>
   <div class="mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-xl">
-    <div v-if="mealSlot?.recipe" class="relative flex h-full cursor-pointer flex-col" @click="$emit('open')">
+    <div v-if="mealSlot?.recipe || mealSlot?.ingredient" class="relative flex h-full cursor-pointer flex-col" @click="$emit('open')">
       <span
         v-if="kok"
         class="absolute top-1 right-1 z-10 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground"
@@ -8,12 +8,18 @@
       >
         {{ kok.charAt(0).toUpperCase() }}
       </span>
-      <div class="min-h-0 flex-1 overflow-hidden rounded-lg">
+      <div v-if="mealSlot.recipe" class="min-h-0 flex-1 overflow-hidden rounded-lg">
         <RecipeThumb :recipe="mealSlot.recipe" fill />
       </div>
-      <p class="mt-1 truncate text-xs font-medium shrink-0" :title="mealSlot.recipe.naam">
+      <!-- Los ingrediënt (bv. een handje noten): geen foto, wel hoeveelheid + kcal. -->
+      <div v-else class="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-secondary/70 p-1 text-center">
+        <Apple class="size-5 text-primary" />
+        <span class="text-xs font-medium tabular-nums">{{ formatHoeveelheid(mealSlot.ingredientHoeveelheid, mealSlot.ingredientEenheid) }}</span>
+        <span class="text-[10px] tabular-nums text-muted-foreground">{{ Math.round(slotMacros(mealSlot).kcal) }} kcal</span>
+      </div>
+      <p class="mt-1 truncate text-xs font-medium shrink-0" :title="naam">
         <StickyNote v-if="mealSlot.notitie" class="mr-0.5 inline size-3 -translate-y-px text-accent" />
-        {{ mealSlot.recipe.naam }}
+        {{ naam }}
       </p>
       <div v-if="editable" class="absolute inset-x-0 bottom-6 flex justify-center gap-1 bg-gradient-to-t from-black/60 to-transparent pt-4 pb-1 opacity-0 transition-opacity group-hover:opacity-100">
         <button type="button" title="Notitie" class="grid size-5 place-items-center rounded text-white hover:bg-white/20" @click.stop="$emit('notitie')">
@@ -30,7 +36,7 @@
     <div v-else-if="editable" class="flex h-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border">
       <span class="text-xs text-muted-foreground/50 group-hover:hidden">+ voeg toe</span>
       <div class="hidden gap-1 group-hover:flex">
-        <button type="button" title="Zoek recept" class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground" @click="$emit('search')">
+        <button type="button" title="Zoek recept of ingrediënt" class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground" @click="$emit('search')">
           <Search class="size-3.5" />
         </button>
         <button type="button" title="Suggestie" class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground" @click="$emit('suggest')">
@@ -45,16 +51,21 @@
 </template>
 
 <script setup lang="ts">
-import { StickyNote, User, X, Search, Dices } from "lucide-vue-next";
+import { StickyNote, User, X, Search, Dices, Apple } from "lucide-vue-next";
+import { slotMacros } from "~/composables/useMacros";
+import { formatHoeveelheid } from "~/composables/useIngredientUnits";
 
 // Inhoud van één weekbord-vakje. Verwacht een ouder met de `group`-class
 // (de <td>), zodat de knoppen bij hover over het hele vakje verschijnen.
-defineProps<{
+const props = defineProps<{
   mealSlot: any | null;
   editable: boolean;
   // Naam van wie er kookt, of "" als niemand is toegewezen.
   kok: string;
 }>();
+
+const naam = computed(() => props.mealSlot?.recipe?.naam ?? props.mealSlot?.ingredient?.naam ?? "");
+
 defineEmits<{
   (e: "open"): void;
   (e: "search"): void;

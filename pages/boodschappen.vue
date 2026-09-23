@@ -26,30 +26,48 @@
     <div v-if="!plan" class="text-sm text-muted-foreground">Laden…</div>
 
     <template v-else>
-      <div v-if="weekRecipes.length === 0" class="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
+      <div v-if="weekRecipes.length === 0 && weekLooseIngredients.length === 0" class="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
         Er staan nog geen gerechten in deze week. <NuxtLink :to="`/?week=${isoDate(weekStart)}`" class="font-medium text-primary underline-offset-4 hover:underline">Vul eerst het weekbord in</NuxtLink>.
       </div>
 
       <template v-else>
-        <h2 class="mb-2 text-base font-display font-semibold">Gerechten deze week</h2>
-        <p class="mb-3 text-xs text-muted-foreground">
-          Pas het aantal personen per gerecht aan (in stapjes van 0,5 -- handig voor een halve kinderportie). De
-          ingrediënten hieronder schalen automatisch mee.
-        </p>
-        <div class="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-          <div v-for="entry in weekRecipes" :key="entry.recipe.id" class="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
-            <div class="w-11 shrink-0 overflow-hidden rounded-lg">
-              <RecipeThumb :recipe="entry.recipe" compact />
+        <template v-if="weekRecipes.length">
+          <h2 class="mb-2 text-base font-display font-semibold">Gerechten deze week</h2>
+          <p class="mb-3 text-xs text-muted-foreground">
+            Pas het aantal personen per gerecht aan (in stapjes van 0,5 -- handig voor een halve kinderportie). De
+            ingrediënten hieronder schalen automatisch mee.
+          </p>
+          <div class="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+            <div v-for="entry in weekRecipes" :key="entry.recipe.id" class="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
+              <div class="w-11 shrink-0 overflow-hidden rounded-lg">
+                <RecipeThumb :recipe="entry.recipe" compact />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium">{{ entry.recipe.naam }}</p>
+                <p class="mt-0.5 text-xs text-muted-foreground">{{ entry.occurrences }}× deze week · standaard {{ entry.recipe.porties }} portie(s)</p>
+              </div>
+              <PortionStepper v-model="portions[entry.recipe.id]" class="shrink-0">
+                <span class="text-xs text-muted-foreground">pers.</span>
+              </PortionStepper>
             </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium">{{ entry.recipe.naam }}</p>
-              <p class="mt-0.5 text-xs text-muted-foreground">{{ entry.occurrences }}× deze week · standaard {{ entry.recipe.porties }} portie(s)</p>
-            </div>
-            <PortionStepper v-model="portions[entry.recipe.id]" class="shrink-0">
-              <span class="text-xs text-muted-foreground">pers.</span>
-            </PortionStepper>
           </div>
-        </div>
+        </template>
+
+        <template v-if="weekLooseIngredients.length">
+          <h2 class="mt-6 mb-2 text-base font-display font-semibold">Losse ingrediënten</h2>
+          <div class="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+            <div v-for="entry in weekLooseIngredients" :key="entry.ingredient.id" class="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
+              <div class="grid size-11 shrink-0 place-items-center rounded-lg bg-secondary/70">
+                <Apple class="size-5 text-primary" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-medium">{{ entry.ingredient.naam }}</p>
+                <p class="mt-0.5 text-xs text-muted-foreground">{{ entry.occurrences }}× deze week</p>
+              </div>
+              <span class="shrink-0 text-xs tabular-nums text-muted-foreground">{{ formatAmount(entry.gram) }}</span>
+            </div>
+          </div>
+        </template>
 
         <div class="mt-6 mb-2 flex items-center justify-between">
           <h2 class="text-base font-display font-semibold">Boodschappenlijst</h2>
@@ -91,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Copy } from "lucide-vue-next";
+import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Copy, Apple } from "lucide-vue-next";
 import { isoDate, formatWeekDate, weekStartFromQuery } from "~/composables/useWeek";
 
 const route = useRoute();
@@ -136,6 +154,23 @@ function weekRecipesFrom(planData: any) {
 
 const weekRecipes = computed(() => weekRecipesFrom(plan.value));
 
+// Vakjes met één los ingrediënt i.p.v. een recept (bv. een handje noten),
+// opgeteld per ingrediënt.
+const weekLooseIngredients = computed(() => {
+  const map = new Map<string, { ingredient: any; gram: number; occurrences: number }>();
+  for (const slot of plan.value?.slots ?? []) {
+    if (!slot.ingredient || !slot.ingredientHoeveelheidGram) continue;
+    const existing = map.get(slot.ingredient.id);
+    if (existing) {
+      existing.gram += slot.ingredientHoeveelheidGram;
+      existing.occurrences++;
+    } else {
+      map.set(slot.ingredient.id, { ingredient: slot.ingredient, gram: slot.ingredientHoeveelheidGram, occurrences: 1 });
+    }
+  }
+  return [...map.values()].sort((a, b) => a.ingredient.naam.localeCompare(b.ingredient.naam, "nl"));
+});
+
 interface ShoppingItem {
   naam: string;
   gram: number;
@@ -145,24 +180,25 @@ interface ShoppingItem {
 
 const shoppingList = computed(() => {
   const totals = new Map<string, ShoppingItem>();
+  function add(ingredient: any, grams: number) {
+    const existing = totals.get(ingredient.naam);
+    if (existing) {
+      existing.gram += grams;
+    } else {
+      totals.set(ingredient.naam, {
+        naam: ingredient.naam,
+        gram: grams,
+        winkelCategorie: ingredient.winkelCategorie ?? null,
+        basisvoorraad: ingredient.basisvoorraad ?? false
+      });
+    }
+  }
   for (const { recipe } of weekRecipes.value) {
     const wantedPortions = portions[recipe.id] ?? recipe.porties;
     const factor = wantedPortions / recipe.porties;
-    for (const ri of recipe.ingredients) {
-      const grams = ri.hoeveelheidGram * factor;
-      const existing = totals.get(ri.ingredient.naam);
-      if (existing) {
-        existing.gram += grams;
-      } else {
-        totals.set(ri.ingredient.naam, {
-          naam: ri.ingredient.naam,
-          gram: grams,
-          winkelCategorie: ri.ingredient.winkelCategorie ?? null,
-          basisvoorraad: ri.ingredient.basisvoorraad ?? false
-        });
-      }
-    }
+    for (const ri of recipe.ingredients) add(ri.ingredient, ri.hoeveelheidGram * factor);
   }
+  for (const { ingredient, gram } of weekLooseIngredients.value) add(ingredient, gram);
   return [...totals.values()].sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
 });
 

@@ -56,7 +56,7 @@
                 v-for="m in MEAL_MOMENTS"
                 :key="m.key"
                 class="size-1.5 rounded-full lg:size-2"
-                :class="slotForDag(dag.key, m.key)?.recipeId ? 'bg-primary' : 'bg-border'"
+                :class="isSlotFilled(slotForDag(dag.key, m.key)) ? 'bg-primary' : 'bg-border'"
               ></span>
             </div>
           </button>
@@ -72,6 +72,7 @@
 import { X, Sun, Moon } from "lucide-vue-next";
 import { MEAL_MOMENTS, WEEK_DAGEN, momentRowLabel } from "~/composables/useMealMoments";
 import { mondayOf, isoDate, dateForDag, formatDayDate } from "~/composables/useWeek";
+import { isSlotFilled } from "~/composables/useMacros";
 
 definePageMeta({ layout: "kiosk" });
 
