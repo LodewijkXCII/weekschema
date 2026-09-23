@@ -100,10 +100,14 @@ RIVM's gebruiksvoorwaarden, zie
 dus kopieer het los naar de Pi, bv. vanaf je dev-machine:
 
 ```bash
-scp -r server/utils/NEVO pi@<pi-lan-ip>:/opt/weekschema/server/utils/NEVO
+ssh pi@<pi-lan-ip> mkdir -p /opt/weekschema/server/utils/NEVO
+scp server/utils/NEVO/*.csv pi@<pi-lan-ip>:/opt/weekschema/server/utils/NEVO/
+# daarna op de Pi:
+docker compose -f docker-compose.prod.yml restart app
 ```
 
-Ontbreekt dit, dan werkt de rest van de app gewoon door -- de
+(Niet `scp -r .../NEVO .../NEVO` -- als die map al bestaat wordt het
+`NEVO/NEVO/...` en vindt de app het bestand niet.) Ontbreekt dit, dan werkt de rest van de app gewoon door -- de
 ingrediënt-zoekfunctie valt dan automatisch terug op alleen Albert Heijn.
 
 ## 3. Twingate: Remote Network + Connector aanmaken

@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { requireHousehold } from "../../utils/session";
 import { db } from "../../db";
-import { ingredients } from "../../db/schema";
+import { ingredients, recipeIngredients } from "../../db/schema";
 
 interface Body {
   naam?: string;
@@ -18,7 +18,11 @@ interface Body {
 // PATCH /api/ingredients/:id -- ingrediënt bewerken. Macro's worden altijd
 // per 100g opgeslagen (zie CLAUDE.md), dus dit werkt automatisch door in
 // elk recept dat dit ingrediënt gebruikt -- macro's worden nergens
-// dubbel/statisch per recept bewaard, alleen live berekend.
+// dubbel/statisch per recept bewaard, alleen live berekend. Uitzondering:
+// hoeveelheidGram van recept-regels in "stuks" is bij het opslaan van het
+// recept vastgelegd met het toenmalige gramPerStuk -- die worden hier
+// herberekend als gramPerStuk wijzigt, anders blijven die recepten op het
+// oude gewicht rekenen.
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event);
   const id = getRouterParam(event, "id");
@@ -37,11 +41,26 @@ export default defineEventHandler(async (event) => {
   }
   if (body.gramPerStuk !== undefined) set.gramPerStuk = body.gramPerStuk || null;
 
-  const [row] = await db
-    .update(ingredients)
-    .set(set)
-    .where(and(eq(ingredients.id, id!), eq(ingredients.householdId, householdId)))
-    .returning();
+  const row = await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(ingredients)
+      .set(set)
+      .where(and(eq(ingredients.id, id!), eq(ingredients.householdId, householdId)))
+      .returning();
+
+    // Zonder gramPerStuk valt er niets te herberekenen -- dan blijven de
+    // bestaande grammen staan. Zelfde afronding als eenheidNaarGram().
+    if (updated?.gramPerStuk) {
+      await tx
+        .update(recipeIngredients)
+        .set({
+          hoeveelheidGram: sql`round((${recipeIngredients.hoeveelheid} * ${updated.gramPerStuk} * 10)::numeric) / 10`
+        })
+        .where(and(eq(recipeIngredients.ingredientId, updated.id), eq(recipeIngredients.eenheid, "stuks")));
+    }
+
+    return updated;
+  });
 
   if (!row) throw createError({ statusCode: 404, statusMessage: "Ingrediënt niet gevonden" });
   return row;

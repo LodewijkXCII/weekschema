@@ -25,6 +25,12 @@ services:
     environment:
       # Binnen het compose-netwerk heet de db-service "db", niet "localhost".
       DATABASE_URL: postgres://weekplanner:weekplanner@db:5432/weekplanner
+    volumes:
+      # NEVO-databestand (niet in git, zie DEPLOY.md) rechtstreeks vanaf de
+      # Pi mounten i.p.v. alleen in het image te bakken -- dan werkt het ook
+      # als je het pas na de laatste build hebt neergezet, zonder rebuild
+      # (alleen een herstart, NEVO wordt per proces één keer ingeladen).
+      - ./server/utils/NEVO:/app/server/utils/NEVO:ro
     ports:
       # Bewust op alle interfaces (dus ook het LAN) i.p.v. alleen localhost:
       # de Twingate-connector routeert verkeer op basis van het LAN-adres
