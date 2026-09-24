@@ -44,6 +44,9 @@ async function submit() {
     error.value = err.message ?? "Inloggen mislukt";
     return;
   }
-  await navigateTo("/");
+  // Terug naar de pagina waar de auth-middleware je vandaan stuurde -- alleen
+  // interne paden, geen open redirect naar een extern adres.
+  const redirect = useRoute().query.redirect;
+  await navigateTo(typeof redirect === "string" && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/");
 }
 </script>
