@@ -96,6 +96,7 @@
                   @suggest="suggestRandom(dag.key, moment.key)"
                   @notitie="editNotitie(dag.key, moment.key)"
                   @kok="cycleKok(dag.key, moment.key)"
+                  @personen="editPersonen(dag.key, moment.key)"
                   @clear="clearSlot(dag.key, moment.key)"
                 />
 
@@ -138,7 +139,7 @@
 import {
   ChevronLeft, ChevronRight, CalendarDays, ShoppingCart, TrendingUp, Lock, Pencil, ClipboardCopy, Wand2
 } from "lucide-vue-next";
-import { MEAL_MOMENTS, WEEK_DAGEN, RECIPE_CATEGORIE_LABELS, momentRowLabel } from "~/composables/useMealMoments";
+import { MEAL_MOMENTS, WEEK_DAGEN, RECIPE_CATEGORIE_LABELS, momentRowLabel, defaultPersonen } from "~/composables/useMealMoments";
 import { mondayOf, isoDate, formatWeekDate, weekStartFromQuery, dateForDag, formatDayDate } from "~/composables/useWeek";
 import { emptyMacros, slotMacros, isSlotFilled, ingredientMacros, type Macros } from "~/composables/useMacros";
 import { eenheidNaarGram, type IngredientUnitKey } from "~/composables/useIngredientUnits";
@@ -329,6 +330,30 @@ async function editNotitie(dag: string, moment: string) {
   await loadWeek();
 }
 
+async function editPersonen(dag: string, moment: string) {
+  const slot = slotFor(dag, moment);
+  if (!slot) return;
+  const standaard = defaultPersonen(slot);
+  const value = prompt(
+    `Met hoeveel personen eten jullie dit? (stapjes van 0,5; leeg = standaard ${standaard.toLocaleString("nl")})`,
+    slot.personen != null ? slot.personen.toLocaleString("nl") : ""
+  );
+  if (value === null) return;
+  let personen: number | null = null;
+  if (value.trim()) {
+    personen = Number(value.trim().replace(",", "."));
+    if (!(personen > 0) || !Number.isInteger(personen * 2)) {
+      alert("Vul een aantal in stapjes van 0,5 in (bv. 2 of 2,5).");
+      return;
+    }
+  }
+  await $fetch<any>("/api/mealslots" as any, {
+    method: "POST",
+    body: { weekPlanId: plan.value.plan.id, dag, mealMoment: moment, personen }
+  });
+  await loadWeek();
+}
+
 async function cycleKok(dag: string, moment: string) {
   const currentId = slotFor(dag, moment)?.kokUserId ?? null;
   const ids: (string | null)[] = [null, ...householdMembers.value.map((m) => m.userId)];
@@ -364,6 +389,7 @@ async function copyPreviousWeek() {
         weekPlanId: plan.value.plan.id,
         dag: slot.dag,
         mealMoment: slot.mealMoment,
+        personen: slot.personen ?? null,
         ...(slot.recipeId
           ? { recipeId: slot.recipeId }
           : {

@@ -31,11 +31,42 @@
       </div>
 
       <template v-else>
+        <div class="mb-2 flex items-center justify-between">
+          <h2 class="text-base font-display font-semibold">Boodschappenlijst</h2>
+          <div class="flex gap-2">
+            <button type="button" class="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary" @click="setAllChecked(true)">Alles aanvinken</button>
+            <button type="button" class="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary" @click="setAllChecked(false)">Alles uitvinken</button>
+          </div>
+        </div>
+
+        <div v-for="[categorie, items] in groupedShoppingList" :key="categorie" class="mb-2.5 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <p class="border-b border-border bg-secondary/60 px-3.5 py-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{{ categorie }}</p>
+          <label v-for="item in items" :key="item.naam" class="flex cursor-pointer items-center gap-2.5 border-b border-border px-3.5 py-2 last:border-b-0">
+            <input type="checkbox" v-model="checked[item.naam]" class="size-4 accent-primary" />
+            <span class="flex-1 text-sm" :class="checked[item.naam] ? '' : 'text-muted-foreground line-through'">{{ item.naam }}</span>
+            <span class="text-xs text-muted-foreground">{{ formatAmount(item.gram) }}</span>
+          </label>
+        </div>
+
+        <div v-if="basisItems.length" class="mt-5 overflow-hidden rounded-2xl border border-dashed border-border bg-card shadow-soft">
+          <div class="border-b border-border bg-secondary/60 px-3.5 py-2">
+            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Niet vergeten</p>
+            <p class="mt-0.5 text-xs text-muted-foreground">Basisvoorraad -- meestal al in huis. Vink aan wat op is.</p>
+          </div>
+          <label v-for="item in basisItems" :key="item.naam" class="flex cursor-pointer items-center gap-2.5 border-b border-border px-3.5 py-2 last:border-b-0">
+            <input type="checkbox" v-model="checked[item.naam]" class="size-4 accent-primary" />
+            <span class="flex-1 text-sm" :class="checked[item.naam] ? '' : 'text-muted-foreground line-through'">{{ item.naam }}</span>
+            <span class="text-xs text-muted-foreground">{{ formatAmount(item.gram) }}</span>
+          </label>
+        </div>
+
         <template v-if="weekRecipes.length">
-          <h2 class="mb-2 text-base font-display font-semibold">Gerechten deze week</h2>
+          <h2 class="mt-6 mb-2 text-base font-display font-semibold">Gerechten deze week</h2>
           <p class="mb-3 text-xs text-muted-foreground">
-            Pas het aantal personen per gerecht aan (in stapjes van 0,5 -- handig voor een halve kinderportie). De
-            ingrediënten hieronder schalen automatisch mee.
+            Ontbijt en diner gaan standaard uit van {{ PERSONEN_HOOFDMAALTIJD.toLocaleString("nl") }} personen per keer.
+            Eten er meer of minder mensen mee? Pas het aantal personen per vakje aan op het
+            <NuxtLink :to="`/?week=${isoDate(weekStart)}`" class="font-medium text-primary underline-offset-4 hover:underline">weekbord</NuxtLink>;
+            de boodschappenlijst hierboven schaalt automatisch mee.
           </p>
           <div class="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
             <div v-for="entry in weekRecipes" :key="entry.recipe.id" class="flex items-center gap-3 border-b border-border p-3 last:border-b-0">
@@ -44,11 +75,11 @@
               </div>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium">{{ entry.recipe.naam }}</p>
-                <p class="mt-0.5 text-xs text-muted-foreground">{{ entry.occurrences }}× deze week · standaard {{ entry.recipe.porties }} portie(s)</p>
+                <p class="mt-0.5 text-xs text-muted-foreground">{{ entry.occurrences }}× deze week · recept voor {{ entry.recipe.porties }} portie(s)</p>
               </div>
-              <PortionStepper v-model="portions[entry.recipe.id]" class="shrink-0">
-                <span class="text-xs text-muted-foreground">pers.</span>
-              </PortionStepper>
+              <span class="inline-flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted-foreground">
+                <Users class="size-3.5" /> {{ entry.personen.toLocaleString("nl") }} pers.
+              </span>
             </div>
           </div>
         </template>
@@ -68,26 +99,6 @@
             </div>
           </div>
         </template>
-
-        <div class="mt-6 mb-2 flex items-center justify-between">
-          <h2 class="text-base font-display font-semibold">Boodschappenlijst</h2>
-          <div class="flex gap-2">
-            <button type="button" class="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary" @click="setAllChecked(true)">Alles aanvinken</button>
-            <button type="button" class="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary" @click="setAllChecked(false)">Alles uitvinken</button>
-          </div>
-        </div>
-
-        <div v-for="[categorie, items] in groupedShoppingList" :key="categorie" class="mb-2.5 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-          <p class="border-b border-border bg-secondary/60 px-3.5 py-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{{ categorie }}</p>
-          <label v-for="item in items" :key="item.naam" class="flex cursor-pointer items-center gap-2.5 border-b border-border px-3.5 py-2 last:border-b-0">
-            <input type="checkbox" v-model="checked[item.naam]" class="size-4 accent-primary" />
-            <span class="flex-1 text-sm" :class="checked[item.naam] ? '' : 'text-muted-foreground line-through'">
-              {{ item.naam }}
-              <span v-if="item.basisvoorraad" class="ml-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">basis</span>
-            </span>
-            <span class="text-xs text-muted-foreground">{{ formatAmount(item.gram) }}</span>
-          </label>
-        </div>
 
         <h2 class="mt-6 mb-2 text-base font-display font-semibold">Tijdelijk exporteren</h2>
         <p class="mb-3 text-xs text-muted-foreground">
@@ -109,29 +120,20 @@
 </template>
 
 <script setup lang="ts">
-import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Copy, Apple } from "lucide-vue-next";
+import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Copy, Apple, Users } from "lucide-vue-next";
 import { isoDate, formatWeekDate, weekStartFromQuery } from "~/composables/useWeek";
+import { PERSONEN_HOOFDMAALTIJD, slotPersonen } from "~/composables/useMealMoments";
 
 const route = useRoute();
 
 const weekStart = ref(weekStartFromQuery(route.query.week));
 
 const plan = ref<any>(null);
-const portions = reactive<Record<string, number>>({});
 const checked = reactive<Record<string, boolean>>({});
 const copied = ref(false);
 
 async function loadWeek() {
   plan.value = await $fetch(`/api/weekplans/${isoDate(weekStart.value)}`);
-
-  // Portie-defaults en aangevinkte-status alleen initialiseren voor
-  // gerechten die nog niet eerder gezien zijn, zodat handmatige
-  // aanpassingen niet verloren gaan bij een herlaad van de data.
-  for (const entry of weekRecipesFrom(plan.value)) {
-    if (!(entry.recipe.id in portions)) {
-      portions[entry.recipe.id] = entry.occurrences * entry.recipe.porties;
-    }
-  }
 }
 
 function shiftWeek(delta: number) {
@@ -141,31 +143,38 @@ function shiftWeek(delta: number) {
   loadWeek();
 }
 
-function weekRecipesFrom(planData: any) {
-  const map = new Map<string, { recipe: any; occurrences: number }>();
-  for (const slot of planData?.slots ?? []) {
+// Per recept opgeteld: hoe vaak het op het weekbord staat en voor hoeveel
+// personen in totaal (per vakje opgeslagen, zie slotPersonen()).
+const weekRecipes = computed(() => {
+  const map = new Map<string, { recipe: any; occurrences: number; personen: number }>();
+  for (const slot of plan.value?.slots ?? []) {
     if (!slot.recipe) continue;
+    const personen = slotPersonen(slot);
     const existing = map.get(slot.recipe.id);
-    if (existing) existing.occurrences++;
-    else map.set(slot.recipe.id, { recipe: slot.recipe, occurrences: 1 });
+    if (existing) {
+      existing.occurrences++;
+      existing.personen += personen;
+    } else {
+      map.set(slot.recipe.id, { recipe: slot.recipe, occurrences: 1, personen });
+    }
   }
   return [...map.values()].sort((a, b) => a.recipe.naam.localeCompare(b.recipe.naam, "nl"));
-}
-
-const weekRecipes = computed(() => weekRecipesFrom(plan.value));
+});
 
 // Vakjes met één los ingrediënt i.p.v. een recept (bv. een handje noten),
-// opgeteld per ingrediënt.
+// opgeteld per ingrediënt. De ingevulde hoeveelheid is per persoon, dus keer
+// het aantal personen van dat vakje.
 const weekLooseIngredients = computed(() => {
   const map = new Map<string, { ingredient: any; gram: number; occurrences: number }>();
   for (const slot of plan.value?.slots ?? []) {
     if (!slot.ingredient || !slot.ingredientHoeveelheidGram) continue;
+    const gram = slot.ingredientHoeveelheidGram * slotPersonen(slot);
     const existing = map.get(slot.ingredient.id);
     if (existing) {
-      existing.gram += slot.ingredientHoeveelheidGram;
+      existing.gram += gram;
       existing.occurrences++;
     } else {
-      map.set(slot.ingredient.id, { ingredient: slot.ingredient, gram: slot.ingredientHoeveelheidGram, occurrences: 1 });
+      map.set(slot.ingredient.id, { ingredient: slot.ingredient, gram, occurrences: 1 });
     }
   }
   return [...map.values()].sort((a, b) => a.ingredient.naam.localeCompare(b.ingredient.naam, "nl"));
@@ -193,9 +202,8 @@ const shoppingList = computed(() => {
       });
     }
   }
-  for (const { recipe } of weekRecipes.value) {
-    const wantedPortions = portions[recipe.id] ?? recipe.porties;
-    const factor = wantedPortions / recipe.porties;
+  for (const { recipe, personen } of weekRecipes.value) {
+    const factor = personen / recipe.porties;
     for (const ri of recipe.ingredients) add(ri.ingredient, ri.hoeveelheidGram * factor);
   }
   for (const { ingredient, gram } of weekLooseIngredients.value) add(ingredient, gram);
@@ -204,9 +212,11 @@ const shoppingList = computed(() => {
 
 // Gegroepeerd op winkelcategorie voor een overzichtelijke lijst tijdens het
 // boodschappen doen; items zonder categorie vallen onder "Overig" onderaan.
+// Basisvoorraad staat hier niet in maar apart onder "Niet vergeten".
 const groupedShoppingList = computed(() => {
   const groups = new Map<string, ShoppingItem[]>();
   for (const item of shoppingList.value) {
+    if (item.basisvoorraad) continue;
     const key = item.winkelCategorie || "Overig";
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(item);
@@ -217,6 +227,8 @@ const groupedShoppingList = computed(() => {
     return a.localeCompare(b, "nl");
   });
 });
+
+const basisItems = computed(() => shoppingList.value.filter((i) => i.basisvoorraad));
 
 // Nieuwe ingrediënten starten aangevinkt, behalve basisvoorraad-items (die
 // staan meestal al in huis); bestaande aan/uit-status blijft staan als je
@@ -243,7 +255,8 @@ function formatAmount(gram: number) {
 }
 
 const exportText = computed(() => {
-  const lines = shoppingList.value
+  // Zelfde volgorde als op het scherm: basisvoorraad achteraan.
+  const lines = [...groupedShoppingList.value.flatMap(([, items]) => items), ...basisItems.value]
     .filter((i) => checked[i.naam])
     .map((i) => `- ${i.naam}: ${formatAmount(i.gram)}`);
   return `Boodschappenlijst -- week van ${formatWeekDate(weekStart.value)}\n\n${lines.join("\n")}`;

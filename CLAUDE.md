@@ -52,6 +52,11 @@ kiosk-weergave voor een keukentablet.
   `mealSlots`, aangemaakt bij het eerste bezoek aan die week
   (`server/api/weekplans/[week].get.ts`). Slots worden nooit los
   aangemaakt/verwijderd, alleen hun `recipeId` wordt gezet/leeggemaakt.
+- Elk `mealSlot` heeft een optioneel `personen` (stapjes van 0,5), in te
+  stellen per vakje op het weekbord. `null` = standaard: 2,5 bij ontbijt en
+  diner, anders het aantal porties van het recept (1 voor een los
+  ingrediënt) -- zie `slotPersonen()` in `composables/useMealMoments.ts`. De
+  boodschappenlijst schaalt hier per vakje op.
 - Alle data is scoped op `householdId`, niet op losse users -- elke
   API-route gebruikt `requireHousehold(event)` uit
   `server/utils/session.ts` om dit af te dwingen.

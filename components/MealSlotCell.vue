@@ -8,6 +8,13 @@
       >
         {{ kok.charAt(0).toUpperCase() }}
       </span>
+      <span
+        class="absolute top-1 left-1 z-10 inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+        :class="afwijkend ? 'bg-accent text-accent-foreground' : 'bg-black/45 text-white'"
+        :title="`${personenLabel} personen${afwijkend ? '' : ' (standaard)'}`"
+      >
+        <Users class="size-2.5" /> {{ personenLabel }}
+      </span>
       <div v-if="mealSlot.recipe" class="min-h-0 flex-1 overflow-hidden rounded-lg">
         <RecipeThumb :recipe="mealSlot.recipe" fill />
       </div>
@@ -24,6 +31,9 @@
       <div v-if="editable" class="absolute inset-x-0 bottom-6 flex justify-center gap-1 bg-gradient-to-t from-black/60 to-transparent pt-4 pb-1 opacity-0 transition-opacity group-hover:opacity-100">
         <button type="button" title="Notitie" class="grid size-5 place-items-center rounded text-white hover:bg-white/20" @click.stop="$emit('notitie')">
           <StickyNote class="size-3" />
+        </button>
+        <button type="button" title="Aantal personen" class="grid size-5 place-items-center rounded text-white hover:bg-white/20" @click.stop="$emit('personen')">
+          <Users class="size-3" />
         </button>
         <button type="button" title="Wie kookt" class="grid size-5 place-items-center rounded text-white hover:bg-white/20" @click.stop="$emit('kok')">
           <User class="size-3" />
@@ -51,7 +61,8 @@
 </template>
 
 <script setup lang="ts">
-import { StickyNote, User, X, Search, Dices, Apple } from "lucide-vue-next";
+import { StickyNote, User, Users, X, Search, Dices, Apple } from "lucide-vue-next";
+import { slotPersonen, defaultPersonen } from "~/composables/useMealMoments";
 import { slotMacros } from "~/composables/useMacros";
 import { formatHoeveelheid } from "~/composables/useIngredientUnits";
 
@@ -66,12 +77,20 @@ const props = defineProps<{
 
 const naam = computed(() => props.mealSlot?.recipe?.naam ?? props.mealSlot?.ingredient?.naam ?? "");
 
+// Aantal personen voor dit vakje; opvallend gekleurd als het afwijkt van de
+// standaard, zodat je in één oogopslag ziet wanneer er meer/minder mee-eten.
+const personenLabel = computed(() => (props.mealSlot ? slotPersonen(props.mealSlot).toLocaleString("nl") : ""));
+const afwijkend = computed(
+  () => props.mealSlot?.personen != null && props.mealSlot.personen !== defaultPersonen(props.mealSlot)
+);
+
 defineEmits<{
   (e: "open"): void;
   (e: "search"): void;
   (e: "suggest"): void;
   (e: "notitie"): void;
   (e: "kok"): void;
+  (e: "personen"): void;
   (e: "clear"): void;
 }>();
 </script>

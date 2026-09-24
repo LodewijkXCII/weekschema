@@ -258,6 +258,17 @@ De eerste keer moet je zelf inloggen in de Chromium-kiosk (er is geen
 aparte no-auth kiosk-modus) -- daarna onthoudt het Chromium-profiel de
 sessie, ook na een herstart van de Pi.
 
+## 10b. Als app installeren (PWA)
+
+De app heeft een manifest, iconen en een service worker, maar browsers
+activeren die service worker alleen via **HTTPS** (of `localhost`). Via
+`http://<pi-lan-ip>:3000` geldt daarom:
+
+- **iPhone/iPad** (Safari → Deel → "Zet op beginscherm"): werkt al, opent
+  fullscreen met het eigen icoon.
+- **Android/desktop Chrome**: alleen een snelkoppeling die in een gewoon
+  browsertabblad opent; echt "Installeren" kan pas met HTTPS.
+
 ## 11. Klaar -- workflow vanaf nu
 
 - **Dev**: blijft ongewijzigd op je Windows-machine, `docker compose up`

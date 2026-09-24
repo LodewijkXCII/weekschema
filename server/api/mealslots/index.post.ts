@@ -14,6 +14,7 @@ interface Body {
   ingredient?: { ingredientId: string; hoeveelheid: number; eenheid: IngredientUnitKey } | null;
   notitie?: string | null;
   kokUserId?: string | null;
+  personen?: number | null; // null = terug naar de standaard
 }
 
 // Sets (or clears) which recipe -- or single ingredient -- sits in one
@@ -79,6 +80,13 @@ export default defineEventHandler(async (event) => {
   }
   if ("notitie" in body) set.notitie = body.notitie?.trim() || null;
   if ("kokUserId" in body) set.kokUserId = body.kokUserId || null;
+  if ("personen" in body) {
+    const p = body.personen;
+    if (p !== null && p !== undefined && !(typeof p === "number" && p > 0 && p <= 50 && Number.isInteger(p * 2))) {
+      throw createError({ statusCode: 400, statusMessage: "Ongeldig aantal personen (stapjes van 0,5)" });
+    }
+    set.personen = p ?? null;
+  }
 
   const [row] = await db
     .update(mealSlots)

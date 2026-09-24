@@ -1,0 +1,1 @@
+ALTER TABLE "meal_slots" ADD COLUMN "personen" real;

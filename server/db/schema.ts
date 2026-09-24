@@ -221,7 +221,11 @@ export const mealSlots = pgTable(
     // Kort briefje bij dit vakje (bv. "extra pittig voor mij").
     notitie: text("notitie"),
     // Wie kookt dit -- verwijst naar een user, niet verplicht.
-    kokUserId: text("kok_user_id").references(() => user.id, { onDelete: "set null" })
+    kokUserId: text("kok_user_id").references(() => user.id, { onDelete: "set null" }),
+    // Met hoeveel personen er bij dit vakje gegeten wordt (stapjes van 0,5),
+    // voor de boodschappenlijst. null = standaard, zie slotPersonen() in
+    // composables/useMealMoments.ts.
+    personen: real("personen")
   },
   (t) => ({
     uniqSlot: unique().on(t.weekPlanId, t.dag, t.mealMoment)
