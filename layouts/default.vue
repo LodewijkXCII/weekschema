@@ -8,6 +8,13 @@
           </span>
           <span class="font-display text-lg font-bold text-foreground">Weekschema</span>
         </NuxtLink>
+        <a
+          :href="commitUrl"
+          target="_blank"
+          rel="noopener"
+          class="mr-auto font-mono text-xs text-muted-foreground no-underline hover:text-foreground"
+          :title="`Gebouwd ${buildTime}`"
+        >{{ shortSha }}</a>
         <nav class="bg-background flex flex-wrap items-center gap-1 rounded-xl border border-border p-1">
           <NuxtLink
             v-for="item in navItems"
@@ -40,6 +47,12 @@
 import { Leaf, CalendarDays, ShoppingCart, ChefHat, Beef, Settings, LogOut, TrendingUp, MonitorPlay } from "lucide-vue-next";
 
 const route = useRoute();
+const config = useRuntimeConfig();
+
+// Versie-indicator: welke commit hier draait, te vergelijken met GitHub.
+const shortSha = config.public.gitSha.slice(0, 7);
+const commitUrl = `https://github.com/LodewijkXCII/weekschema/commit/${config.public.gitSha}`;
+const buildTime = new Date(config.public.buildTime).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" });
 const authClient = useAuthClient();
 const session = ref(null as any);
 

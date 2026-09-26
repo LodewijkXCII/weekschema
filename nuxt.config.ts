@@ -1,4 +1,16 @@
+import { execSync } from "node:child_process";
 import tailwindcss from "@tailwindcss/vite";
+
+// Welke commit deze build is -- in Docker via de GIT_SHA build-arg (zie
+// deploy.sh), lokaal rechtstreeks uit git.
+function gitSha() {
+  if (process.env.GIT_SHA && process.env.GIT_SHA !== "unknown") return process.env.GIT_SHA;
+  try {
+    return execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "unknown";
+  }
+}
 
 export default defineNuxtConfig({
   compatibilityDate: "2026-01-01",
@@ -48,7 +60,9 @@ export default defineNuxtConfig({
     databaseUrl: process.env.DATABASE_URL,
     betterAuthSecret: process.env.BETTER_AUTH_SECRET,
     public: {
-      authBaseUrl: process.env.BETTER_AUTH_URL || "http://localhost:3000"
+      authBaseUrl: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+      gitSha: gitSha(),
+      buildTime: process.env.BUILD_TIME && process.env.BUILD_TIME !== "unknown" ? process.env.BUILD_TIME : new Date().toISOString()
     }
   },
   nitro: {

@@ -9,6 +9,11 @@ cd "$(dirname "$0")"
 git fetch origin main
 git reset --hard origin/main
 
+# Versie-indicator (header van de app): welke commit hier draait.
+export GIT_SHA="$(git rev-parse HEAD)"
+export BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "Deploy van commit $GIT_SHA"
+
 docker compose -f docker-compose.prod.yml build
 docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml exec -T app npm run db:migrate

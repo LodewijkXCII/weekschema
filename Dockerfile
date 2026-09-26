@@ -7,6 +7,13 @@ COPY . .
 # gecommit -- zie .gitignore) NEVO-databestand niet aanwezig is. Anders
 # faalt de COPY hieronder in de run-stage hard op een ontbrekend pad.
 RUN mkdir -p server/utils/NEVO
+# Commit + bouwmoment, meegegeven door deploy.sh (.git zit niet in de
+# build-context, zie .dockerignore). Wordt in nuxt.config.ts ingebakken als
+# versie-indicator in de header. Bewust pas hier gedeclareerd, zodat een
+# nieuwe commit de npm install-laag hierboven niet ongeldig maakt.
+ARG GIT_SHA=unknown
+ARG BUILD_TIME=unknown
+ENV GIT_SHA=$GIT_SHA BUILD_TIME=$BUILD_TIME
 RUN npm run build
 
 FROM node:22-slim AS run
