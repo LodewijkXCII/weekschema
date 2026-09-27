@@ -36,4 +36,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # De Docker-build op de Pi duurt ruim 10 minuten (de standaard
+          # timeout van ssh-action), vooral het kopiëren van node_modules.
+          command_timeout: 30m
           script: bash /opt/weekschema/deploy.sh
