@@ -49,8 +49,64 @@
         <StatCard label="Gem. kcal per dag" :value="avgKcalPerDay ?? '—'" />
       </div>
 
-      <div class="overflow-x-auto rounded-2xl border border-border bg-card shadow-soft">
-        <table class="w-full min-w-[900px] table-fixed border-collapse text-sm">
+      <!-- Mobiel: één dag tegelijk, met de macro's als horizontale balken en de
+           eetmomenten onder elkaar. De brede weektabel is daar onleesbaar. -->
+      <div class="md:hidden">
+        <div class="mb-3 grid grid-cols-7 gap-1">
+          <button
+            v-for="dag in WEEK_DAGEN"
+            :key="'m-' + dag.key"
+            type="button"
+            class="rounded-xl border px-0.5 py-2 text-center transition-colors"
+            :class="dag.key === mobileDag ? 'border-primary bg-primary/10' : 'border-border bg-card'"
+            @click="selectMobileDag(dag.key)"
+          >
+            <p class="text-[11px] font-semibold uppercase" :class="isToday(dag.key) ? 'text-primary' : 'text-muted-foreground'">{{ dag.label.slice(0, 2) }}</p>
+            <p class="text-xs font-bold tabular-nums">{{ formatDayDate(dateForDag(weekStart, dag.key)) }}</p>
+          </button>
+        </div>
+
+        <div class="mb-3 rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <p class="mb-3 flex items-baseline justify-between font-display font-semibold">
+            <span>{{ dagLabel(mobileDag) }}<span v-if="isToday(mobileDag)" class="ml-1.5 text-[10px] font-medium text-primary uppercase">vandaag</span></span>
+            <span class="text-xs font-normal text-muted-foreground">macro's t.o.v. doel</span>
+          </p>
+          <DayTotalBars :totals="dayTotals(mobileDag)" :targets="targets" variant="inline" />
+        </div>
+
+        <div class="divide-y divide-border rounded-2xl border border-border bg-card shadow-soft">
+          <div v-for="moment in MEAL_MOMENTS" :key="'m-' + moment.key" class="relative p-3">
+            <p class="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">{{ momentRowLabel(moment) }}</p>
+            <MealSlotRow
+              :meal-slot="slotFor(mobileDag, moment.key)"
+              :editable="mode === 'edit'"
+              :kok="kokNaam(slotFor(mobileDag, moment.key)?.kokUserId)"
+              @open="onFilledClick(mobileDag, moment.key)"
+              @search="openSearch(mobileDag, moment.key, 'mobile')"
+              @suggest="suggestRandom(mobileDag, moment.key)"
+              @notitie="editNotitie(mobileDag, moment.key)"
+              @kok="cycleKok(mobileDag, moment.key)"
+              @personen="editPersonen(mobileDag, moment.key)"
+              @clear="clearSlot(mobileDag, moment.key)"
+            />
+            <RecipeSearchPopover
+              v-if="mode === 'edit' && activeView === 'mobile' && activeCell === mobileDag + '|' + moment.key"
+              :recipes="recipesForMoment(moment.key)"
+              :ingredients="ingredients"
+              :categorie-label="RECIPE_CATEGORIE_LABELS[moment.categorie]"
+              align-right
+              :default-mode="popoverDefaultMode(mobileDag, moment.key)"
+              @choose="chooseRecipe(mobileDag, moment.key, $event)"
+              @choose-ingredient="chooseIngredient(mobileDag, moment.key, $event)"
+              @suggest="suggestFromPopover(mobileDag, moment.key, $event)"
+              @close="closePopover"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-soft md:block">
+        <table class="w-full min-w-[1050px] table-fixed border-collapse text-sm">
           <thead>
             <tr class="bg-secondary/60">
               <th class="sticky left-0 z-10 w-32 bg-secondary/60 p-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">Moment</th>
@@ -101,7 +157,7 @@
                 />
 
                 <RecipeSearchPopover
-                  v-if="mode === 'edit' && activeCell === dag.key + '|' + moment.key"
+                  v-if="mode === 'edit' && activeView === 'desktop' && activeCell === dag.key + '|' + moment.key"
                   :recipes="recipesForMoment(moment.key)"
                   :ingredients="ingredients"
                   :categorie-label="RECIPE_CATEGORIE_LABELS[moment.categorie]"
@@ -118,7 +174,7 @@
           <tfoot>
             <tr class="border-t border-border bg-secondary/30">
               <th class="sticky left-0 z-10 bg-secondary/30 p-3 text-left text-xs font-semibold text-muted-foreground">Totaal</th>
-              <td v-for="dag in WEEK_DAGEN" :key="'total-' + dag.key" class="border-l border-border p-2">
+              <td v-for="dag in WEEK_DAGEN" :key="'total-' + dag.key" class="border-l border-border p-2.5 align-top">
                 <DayTotalBars :totals="dayTotals(dag.key)" :targets="targets" />
               </td>
             </tr>
@@ -159,6 +215,23 @@ const mode = ref<"edit" | "saved">("edit");
 const detailRecipe = ref<any | null>(null);
 
 const activeCell = ref<string | null>(null);
+// Welke weergave de zoek-popover opende: de mobiele dagweergave en de
+// weektabel staan allebei in de DOM (via CSS verborgen), dus zonder dit
+// zou de popover twee keer openen.
+const activeView = ref<"desktop" | "mobile">("desktop");
+
+// Geselecteerde dag in de mobiele dagweergave: vandaag als die in deze week
+// valt, anders maandag.
+const mobileDag = ref<string>("maandag");
+
+function defaultMobileDag() {
+  return WEEK_DAGEN.find((d) => isToday(d.key))?.key ?? "maandag";
+}
+
+function selectMobileDag(dag: string) {
+  closePopover();
+  mobileDag.value = dag;
+}
 
 const { targetProfiles, activeProfileId, targets, loadTargets } = useTargetProfiles();
 
@@ -225,6 +298,7 @@ function shiftWeek(delta: number) {
 function goToday() {
   closePopover();
   weekStart.value = mondayOf(new Date());
+  mobileDag.value = defaultMobileDag();
   loadWeek();
 }
 
@@ -445,7 +519,8 @@ async function confirmIfExceeds(dag: string, moment: string, naam: string, p: Ma
   );
 }
 
-function openSearch(dag: string, moment: string) {
+function openSearch(dag: string, moment: string, view: "desktop" | "mobile" = "desktop") {
+  activeView.value = view;
   activeCell.value = dag + "|" + moment;
 }
 
@@ -536,6 +611,7 @@ async function suggestFromPopover(dag: string, moment: string, candidates: any[]
 onMounted(() => {
   const stored = localStorage.getItem("weekschema-mode");
   if (stored === "edit" || stored === "saved") mode.value = stored;
+  mobileDag.value = defaultMobileDag();
   loadWeek();
   loadRecipes();
   loadIngredients();

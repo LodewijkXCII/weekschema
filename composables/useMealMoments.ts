@@ -6,6 +6,23 @@ export const MEAL_MOMENTS = [
   { key: "diner", label: "Diner", categorie: "diner" }
 ] as const;
 
+// Vanaf hoe laat (uur van de dag) een eetmoment "aan de beurt" is. Gebruikt
+// door de kiosk om op mobiel naar het huidige moment te scrollen.
+export const MOMENT_VANAF_UUR: Record<(typeof MEAL_MOMENTS)[number]["key"], number> = {
+  ontbijt: 0,
+  tussendoor_1: 10,
+  lunch: 12,
+  tussendoor_2: 14.5,
+  diner: 17
+};
+
+export function currentMomentKey(now = new Date()) {
+  const uur = now.getHours() + now.getMinutes() / 60;
+  let huidig: (typeof MEAL_MOMENTS)[number]["key"] = MEAL_MOMENTS[0].key;
+  for (const m of MEAL_MOMENTS) if (uur >= MOMENT_VANAF_UUR[m.key]) huidig = m.key;
+  return huidig;
+}
+
 // Bij ontbijt en diner eten we standaard met 2,5 personen; bij de andere
 // momenten is de standaard het aantal porties van het recept (of 1 persoon
 // voor een los ingrediënt). Per vakje te overschrijven via mealSlots.personen.

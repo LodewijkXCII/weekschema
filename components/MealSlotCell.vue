@@ -1,6 +1,8 @@
 <template>
-  <div class="mx-auto aspect-square w-full max-w-[220px] overflow-hidden rounded-xl">
-    <div v-if="mealSlot?.recipe || mealSlot?.ingredient" class="relative flex h-full cursor-pointer flex-col" @click="$emit('open')">
+  <!-- Geen vaste vierkante maat: de foto heeft een vaste hoogte, de tekst
+       eronder mag groeien zodat namen leesbaar blijven. -->
+  <div class="w-full overflow-hidden rounded-xl">
+    <div v-if="mealSlot?.recipe || mealSlot?.ingredient" class="relative flex cursor-pointer flex-col" @click="$emit('open')">
       <span
         v-if="kok"
         class="absolute top-1 right-1 z-10 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground"
@@ -15,20 +17,20 @@
       >
         <Users class="size-2.5" /> {{ personenLabel }}
       </span>
-      <div v-if="mealSlot.recipe" class="min-h-0 flex-1 overflow-hidden rounded-lg">
+      <div v-if="mealSlot.recipe" class="relative h-24 overflow-hidden rounded-lg">
         <RecipeThumb :recipe="mealSlot.recipe" fill />
       </div>
-      <!-- Los ingrediënt (bv. een handje noten): geen foto, wel hoeveelheid + kcal. -->
-      <div v-else class="flex min-h-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg bg-secondary/70 p-1 text-center">
+      <!-- Los ingrediënt (bv. een handje noten): geen foto, wel hoeveelheid. -->
+      <div v-else class="relative flex h-24 flex-col items-center justify-center gap-1 rounded-lg bg-secondary/70 p-1 text-center">
         <Apple class="size-5 text-primary" />
         <span class="text-xs font-medium tabular-nums">{{ formatHoeveelheid(mealSlot.ingredientHoeveelheid, mealSlot.ingredientEenheid) }}</span>
-        <span class="text-[10px] tabular-nums text-muted-foreground">{{ Math.round(slotMacros(mealSlot).kcal) }} kcal</span>
       </div>
-      <p class="mt-1 truncate text-xs font-medium shrink-0" :title="naam">
-        <StickyNote v-if="mealSlot.notitie" class="mr-0.5 inline size-3 -translate-y-px text-accent" />
+      <p class="mt-1.5 line-clamp-2 text-sm leading-snug font-medium" :title="naam">
+        <StickyNote v-if="mealSlot.notitie" class="mr-0.5 inline size-3.5 -translate-y-px text-accent" />
         {{ naam }}
       </p>
-      <div v-if="editable" class="absolute inset-x-0 bottom-6 flex justify-center gap-1 bg-gradient-to-t from-black/60 to-transparent pt-4 pb-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <p class="mt-0.5 text-xs tabular-nums text-muted-foreground">{{ Math.round(slotMacros(mealSlot).kcal) }} kcal</p>
+      <div v-if="editable" class="absolute inset-x-0 top-[3.75rem] flex h-9 items-end justify-center gap-1 rounded-b-lg bg-gradient-to-t from-black/60 to-transparent pb-1 opacity-0 transition-opacity group-hover:opacity-100">
         <button type="button" title="Notitie" class="grid size-5 place-items-center rounded text-white hover:bg-white/20" @click.stop="$emit('notitie')">
           <StickyNote class="size-3" />
         </button>
@@ -43,7 +45,7 @@
         </button>
       </div>
     </div>
-    <div v-else-if="editable" class="flex h-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border">
+    <div v-else-if="editable" class="flex h-24 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border">
       <span class="text-xs text-muted-foreground/50 group-hover:hidden">+ voeg toe</span>
       <div class="hidden gap-1 group-hover:flex">
         <button type="button" title="Zoek recept of ingrediënt" class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground" @click="$emit('search')">
@@ -54,7 +56,7 @@
         </button>
       </div>
     </div>
-    <div v-else class="flex h-full items-center justify-center rounded-xl border border-dashed border-border">
+    <div v-else class="flex h-24 items-center justify-center rounded-xl border border-dashed border-border">
       <span class="text-xs text-muted-foreground/50">—</span>
     </div>
   </div>

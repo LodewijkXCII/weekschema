@@ -1,7 +1,8 @@
 <template>
-  <div class="flex flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
-    <div class="flex-none border-b border-border bg-secondary/50 px-3 py-2.5 lg:px-4 lg:py-3">
+  <div class="flex flex-col overflow-hidden rounded-3xl border bg-card shadow-soft" :class="current ? 'border-primary ring-2 ring-primary/40' : 'border-border'">
+    <div class="flex flex-none items-center justify-between gap-2 border-b border-border px-3 py-2.5 lg:px-4 lg:py-3" :class="current ? 'bg-primary/10' : 'bg-secondary/50'">
       <p class="font-display text-base font-semibold lg:text-lg">{{ label }}</p>
+      <span v-if="current" class="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold tracking-wide text-primary-foreground uppercase">Nu</span>
     </div>
 
     <div v-if="mealSlot?.recipe" class="flex min-h-0 flex-1 cursor-pointer flex-col" @click="$emit('open', mealSlot.recipe)">
@@ -56,6 +57,8 @@ defineProps<{
   mealSlot: any | null;
   // Naam van wie er kookt, of "" als niemand is toegewezen.
   kok: string;
+  // Dit eetmoment is nu (vandaag, op dit tijdstip) aan de beurt.
+  current?: boolean;
 }>();
 defineEmits<{ (e: "open", recipe: any): void }>();
 </script>
