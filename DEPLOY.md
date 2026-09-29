@@ -282,6 +282,9 @@ activeren die service worker alleen via **HTTPS** (of `localhost`). Via
   `bash /opt/weekschema/deploy.sh`.
 - Logs bekijken op de Pi: `docker compose -f docker-compose.prod.yml logs -f app`.
 - Database-backup: `docker compose -f docker-compose.prod.yml exec db pg_dump -U weekplanner weekplanner > backup.sql`.
+- Receptfoto's staan niet in de database maar in `/opt/weekschema/uploads/`
+  op de Pi zelf (gemount in de app-container). Neem die map mee in een
+  backup, bv. `tar czf uploads-backup.tgz uploads/`.
 - Vanaf je telefoon/laptop buiten het thuisnetwerk: installeer de Twingate-app,
   log in, en open `http://<pi-lan-ip>:3000` zodra "Weekschema Web" als
   Resource aan jouw account is toegekend (stap 6).
