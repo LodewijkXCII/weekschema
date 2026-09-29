@@ -95,8 +95,10 @@ async function submit() {
       });
     }
   } catch (e: any) {
+    // Het account bestaat nu al (opnieuw registreren zou falen) -- dus door
+    // naar /huishouden om de code nog eens te proberen.
     loading.value = false;
-    error.value = e?.data?.statusMessage ?? "Huishouden koppelen mislukt";
+    await navigateTo({ path: "/huishouden", query: { fout: e?.data?.statusMessage ?? "Huishouden koppelen mislukt" } });
     return;
   }
 

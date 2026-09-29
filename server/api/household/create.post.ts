@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { auth } from "../../utils/auth";
 import { db } from "../../db";
 import { households, householdMembers } from "../../db/schema";
@@ -15,6 +16,13 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<{ naam: string }>(event);
   if (!body?.naam) {
     throw createError({ statusCode: 400, statusMessage: "Naam is verplicht" });
+  }
+
+  const existing = await db.query.householdMembers.findFirst({
+    where: eq(householdMembers.userId, session.user.id)
+  });
+  if (existing) {
+    throw createError({ statusCode: 409, statusMessage: "Je zit al in een huishouden" });
   }
 
   const [household] = await db

@@ -46,6 +46,9 @@
         Geef deze code aan je partner om samen hetzelfde weekschema en dezelfde recepten te gebruiken.
       </p>
       <p v-if="household" class="mt-2 font-display text-xl font-bold tracking-widest">{{ household.inviteCode }}</p>
+      <NuxtLink to="/huishouden" class="mt-2 inline-block text-sm font-medium text-primary hover:underline">
+        Ander huishouden? Voer een uitnodigingscode in
+      </NuxtLink>
     </div>
   </div>
 </template>
