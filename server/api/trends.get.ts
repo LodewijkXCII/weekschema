@@ -2,6 +2,8 @@ import { and, eq, gte } from "drizzle-orm";
 import { requireHousehold } from "../utils/session";
 import { db } from "../db";
 import { weekPlans, weekDagen } from "../db/schema";
+import { hydrateSubRecipes } from "../utils/recipeIngredients";
+import { flattenRecipe } from "../utils/recipeTree";
 
 // GET /api/trends?weken=8
 // Geeft per dag de opgetelde macro's terug over de laatste N weken, voor een
@@ -28,6 +30,8 @@ export default defineEventHandler(async (event) => {
     }
   });
 
+  await hydrateSubRecipes(plans.flatMap((p) => p.slots.map((s) => s.recipe)), householdId);
+
   const dagen: { datum: string; kcal: number; eiwit: number; vet: number; kh: number }[] = [];
 
   for (const plan of plans) {
@@ -37,12 +41,12 @@ export default defineEventHandler(async (event) => {
       const totals = { kcal: 0, eiwit: 0, vet: 0, kh: 0 };
       for (const slot of plan.slots) {
         if (slot.dag !== dag) continue;
-        // Recept: alle ingrediënten, gedeeld door het aantal porties. Los
-        // ingrediënt: gewoon die ene hoeveelheid.
+        // Recept: alle ingrediënten (subrecepten uitgeklapt), gedeeld door
+        // het aantal porties. Los ingrediënt: gewoon die ene hoeveelheid.
         const regels = slot.recipe
-          ? slot.recipe.ingredients.map((ri) => ({
-              ingredient: ri.ingredient,
-              g: ri.hoeveelheidGram / slot.recipe!.porties
+          ? flattenRecipe(slot.recipe).map(({ ingredient, gram }) => ({
+              ingredient,
+              g: gram / slot.recipe!.porties
             }))
           : slot.ingredient && slot.ingredientHoeveelheidGram
             ? [{ ingredient: slot.ingredient, g: slot.ingredientHoeveelheidGram }]

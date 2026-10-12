@@ -94,8 +94,11 @@
           </div>
         </div>
         <ul class="space-y-1 pl-1 text-sm">
-          <li v-for="ri in recipe.ingredients" :key="ri.id ?? ri.ingredient.id" class="flex justify-between">
-            <span>{{ ri.ingredient.naam }}</span>
+          <li v-for="ri in recipe.ingredients" :key="ri.id" class="flex justify-between">
+            <span v-if="ri.subRecipe" class="inline-flex items-center gap-1.5" title="Eigen recept">
+              <ChefHat class="size-3.5 text-primary" /> {{ ri.subRecipe.naam }}
+            </span>
+            <span v-else>{{ ri.ingredient?.naam }}</span>
             <span class="tabular-nums text-muted-foreground">{{ formatHoeveelheid(ri) }}</span>
           </li>
         </ul>
@@ -122,9 +125,10 @@
 </template>
 
 <script setup lang="ts">
-import { X, Camera, Star, Pencil, TriangleAlert, ThumbsUp, ThumbsDown, Minus, Plus, Users } from "lucide-vue-next";
+import { X, Camera, Star, Pencil, TriangleAlert, ThumbsUp, ThumbsDown, Minus, Plus, Users, ChefHat } from "lucide-vue-next";
 import { RECIPE_CATEGORIE_LABELS } from "~/composables/useMealMoments";
-import { INGREDIENT_UNITS, type IngredientUnitKey } from "~/composables/useIngredientUnits";
+import { INGREDIENT_UNITS } from "~/composables/useIngredientUnits";
+import { SUB_RECIPE_UNITS, flattenRecipe } from "~/server/utils/recipeTree";
 import { recipePerPortie } from "~/composables/useMacros";
 
 // `personen` wordt meegegeven als het recept vanuit een vakje op het
@@ -159,13 +163,13 @@ const schaal = computed(() => gewenstePorties.value / (props.recipe?.porties || 
 // tijdens het koken wil zien. Oudere recepten (van vóór dit veld bestond)
 // hebben geen hoeveelheid/eenheid opgeslagen en tonen dan gewoon grammen.
 function formatHoeveelheid(ri: any) {
-  const eenheid: IngredientUnitKey = ri.eenheid ?? "gram";
+  const eenheid: string = ri.eenheid ?? "gram";
   const basis = ri.hoeveelheid ?? ri.hoeveelheidGram;
   const geschaald = basis * schaal.value;
 
   if (eenheid === "gram") return `${Math.round(geschaald)}g`;
 
-  const label = INGREDIENT_UNITS.find((u) => u.key === eenheid)?.label ?? eenheid;
+  const label = [...INGREDIENT_UNITS, ...SUB_RECIPE_UNITS].find((u) => u.key === eenheid)?.label ?? eenheid;
   const afgerond = Math.round(geschaald * 10) / 10;
   return `${afgerond} ${label}`;
 }
@@ -183,8 +187,8 @@ watch(stappen, (list) => {
 
 const allergenen = computed(() => {
   const set = new Set<string>();
-  for (const ri of props.recipe?.ingredients ?? []) {
-    for (const a of ri.ingredient?.allergenen ?? []) set.add(a);
+  for (const { ingredient } of flattenRecipe(props.recipe)) {
+    for (const a of ingredient.allergenen ?? []) set.add(a);
   }
   return [...set];
 });

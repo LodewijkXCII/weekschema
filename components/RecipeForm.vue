@@ -53,6 +53,7 @@
           :key="i"
           v-model="form.rows[i]"
           :ingredients="ingredients"
+          :recipes="recipes"
           @quick-add="openQuickAdd(i)"
           @remove="form.rows.splice(i, 1)"
         />
@@ -81,17 +82,25 @@ import { emptyRecipeRow, type RecipeFormState } from "~/composables/useRecipeFor
 
 // Gedeeld formulier voor recept toevoegen én bewerken. De ouder bezit de
 // state (zodat bv. een import 'm kan vullen) en doet zelf de API-call bij
-// `submit`; dit component laadt alleen de ingrediënten voor de pickers.
-withDefaults(defineProps<{ loading?: boolean; error?: string; photoLabel?: string }>(), {
+// `submit`; dit component laadt alleen de ingrediënten (en de eigen recepten,
+// die ook als ingrediënt kunnen dienen) voor de pickers. `recipeId` is het
+// recept dat bewerkt wordt -- dat kan geen onderdeel van zichzelf zijn.
+const props = withDefaults(defineProps<{ loading?: boolean; error?: string; photoLabel?: string; recipeId?: string }>(), {
   photoLabel: "Foto (optioneel)"
 });
 defineEmits<{ (e: "submit"): void }>();
 const form = defineModel<RecipeFormState>({ required: true });
 
 const ingredients = ref<any[]>([]);
+const recipes = ref<any[]>([]);
 
 onMounted(async () => {
-  ingredients.value = await $fetch<any[]>("/api/ingredients" as any);
+  const [ing, rec] = await Promise.all([
+    $fetch<any[]>("/api/ingredients" as any),
+    $fetch<any[]>("/api/recipes" as any)
+  ]);
+  ingredients.value = ing;
+  recipes.value = rec.filter((r) => r.id !== props.recipeId);
 });
 
 function ingredientGramPerStuk(ingredientId: string) {

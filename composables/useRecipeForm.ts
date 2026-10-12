@@ -1,10 +1,14 @@
 import type { IngredientUnitKey } from "./useIngredientUnits";
 import type { RecipeCategorie } from "./useMealMoments";
+import type { SubRecipeUnitKey } from "../server/utils/recipeTree";
 
 export interface RecipeFormRow {
+  // Óf een ingrediënt, óf een ander recept als onderdeel (bv. een
+  // pizzabodem) -- de andere blijft leeg.
   ingredientId: string;
+  subRecipeId?: string | null;
   hoeveelheid: number;
-  eenheid: IngredientUnitKey;
+  eenheid: IngredientUnitKey | SubRecipeUnitKey;
   // Alleen gezet na een import, voor ingrediënten die niet automatisch
   // gekoppeld konden worden.
   _importNaam?: string | null;
@@ -51,11 +55,12 @@ export function recipeFormFrom(recipe: any): RecipeFormState {
     favoriet: recipe.favoriet,
     photo: null,
     rows: recipe.ingredients.map((ri: any) => ({
-      ingredientId: ri.ingredientId,
+      ingredientId: ri.ingredientId ?? "",
+      subRecipeId: ri.subRecipeId ?? null,
       // Oudere recepten (van vóór dit veld bestond) hebben geen hoeveelheid/
       // eenheid opgeslagen -- val dan terug op de grammen die er al waren.
       hoeveelheid: ri.hoeveelheid ?? ri.hoeveelheidGram,
-      eenheid: (ri.eenheid ?? "gram") as IngredientUnitKey
+      eenheid: ri.eenheid ?? "gram"
     }))
   };
 }
@@ -69,7 +74,8 @@ export function recipePayload(form: RecipeFormState) {
     favoriet: form.favoriet,
     tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
     ingredienten: form.rows.map((r) => ({
-      ingredientId: r.ingredientId,
+      ingredientId: r.subRecipeId ? null : r.ingredientId,
+      subRecipeId: r.subRecipeId || null,
       hoeveelheid: r.hoeveelheid,
       eenheid: r.eenheid
     }))

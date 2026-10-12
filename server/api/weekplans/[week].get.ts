@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { requireHousehold } from "../../utils/session";
 import { db } from "../../db";
 import { weekPlans, mealSlots, weekDagen } from "../../db/schema";
+import { hydrateSubRecipes } from "../../utils/recipeIngredients";
 
 // GET /api/weekplans/2026-09-01  (week param = the Monday of that week)
 // Returns the week plan, creating it (and its 35 empty slots: 7 dagen x 5
@@ -40,6 +41,8 @@ export default defineEventHandler(async (event) => {
       ingredient: true
     }
   });
+
+  await hydrateSubRecipes(slots.map((s) => s.recipe), householdId);
 
   return { plan, slots };
 });

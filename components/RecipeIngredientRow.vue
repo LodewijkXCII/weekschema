@@ -4,7 +4,13 @@
       <div class="flex-[2]">
         <span class="text-xs font-medium text-muted-foreground">Ingrediënt</span>
         <div class="mt-1">
-          <IngredientPicker v-model="row.ingredientId" :ingredients="ingredients" />
+          <IngredientPicker
+            v-model="row.ingredientId"
+            :ingredients="ingredients"
+            :recipe-id="row.subRecipeId"
+            :recipes="recipes"
+            @update:recipe-id="onRecipeChosen"
+          />
         </div>
       </div>
       <button
@@ -22,7 +28,7 @@
       </FormField>
       <FormField label="Eenheid" class="w-28 shrink-0">
         <select v-model="row.eenheid" class="form-input px-2">
-          <option v-for="u in INGREDIENT_UNITS" :key="u.key" :value="u.key">{{ u.label }}</option>
+          <option v-for="u in row.subRecipeId ? SUB_RECIPE_UNITS : INGREDIENT_UNITS" :key="u.key" :value="u.key">{{ u.label }}</option>
         </select>
       </FormField>
       <button type="button" aria-label="Regel verwijderen" class="grid size-9 shrink-0 place-items-center text-muted-foreground hover:text-destructive" @click="$emit('remove')">
@@ -47,11 +53,25 @@
 <script setup lang="ts">
 import { Plus, X } from "lucide-vue-next";
 import { INGREDIENT_UNITS } from "~/composables/useIngredientUnits";
+import { SUB_RECIPE_UNITS } from "~/server/utils/recipeTree";
 import type { RecipeFormRow } from "~/composables/useRecipeForm";
 
-const props = defineProps<{ ingredients: any[] }>();
+const props = defineProps<{ ingredients: any[]; recipes?: any[] }>();
 defineEmits<{ (e: "quick-add"): void; (e: "remove"): void }>();
 const row = defineModel<RecipeFormRow>({ required: true });
+
+// Een recept als ingrediënt gaat in porties of gram; een gewoon ingrediënt
+// kent geen "portie". Bij het wisselen meteen een zinnige eenheid kiezen.
+function onRecipeChosen(id: string | null) {
+  row.value.subRecipeId = id;
+  if (id && !SUB_RECIPE_UNITS.some((u) => u.key === row.value.eenheid)) {
+    row.value.eenheid = "portie";
+    row.value.hoeveelheid = 1;
+  } else if (!id && row.value.eenheid === "portie") {
+    row.value.eenheid = "gram";
+    row.value.hoeveelheid = 100;
+  }
+}
 
 const missingGramPerStuk = computed(
   () =>

@@ -43,6 +43,18 @@ kiosk-weergave voor een keukentablet.
   aangeleverde `hoeveelheidGram` vertrouwd. De eenheid "stuks" heeft geen
   vaste factor -- die gebruikt `gramPerStuk` van het gekozen ingrediënt
   zelf, en faalt met een duidelijke fout als dat niet is ingesteld.
+- Een receptregel kan ook naar een **ander recept** verwijzen
+  (`subRecipeId` i.p.v. `ingredientId`, nooit allebei -- check-constraint),
+  bv. een pizzabodem in een pizza. Zo'n regel gaat in `portie` of `gram`
+  (gram = aandeel van het rauwe ingrediëntengewicht van het subrecept).
+  Macro's, boodschappenlijst, trends en allergenen klappen subrecepten uit
+  via `flattenRecipe()` in `server/utils/recipeTree.ts` (gedeeld door client
+  en server); de API hangt subrecepten eraan als `ri.subRecipe` via
+  `hydrateSubRecipes()` in `server/utils/recipeIngredients.ts`, waar ook de
+  validatie (incl. kringverwijzingen) zit. Bij subrecept-regels is
+  `hoeveelheidGram` alleen een momentopname; er wordt live gerekend met
+  hoeveelheid+eenheid t.o.v. het huidige subrecept. Een recept dat nog als
+  onderdeel wordt gebruikt kan niet verwijderd worden.
 - Ingrediënten uit een geïmporteerd recept worden alleen **automatisch**
   gekoppeld aan een bestaand ingrediënt bij een exacte naamsovereenkomst.
   Een bevat-relatie of gedeeld eerste woord (bv. "sweet soy sauce" vs.

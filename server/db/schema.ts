@@ -16,11 +16,14 @@ import {
   boolean,
   date,
   timestamp,
-  unique
+  unique,
+  check,
+  type AnyPgColumn
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { user } from "./auth-schema";
 import type { IngredientUnitKey } from "../utils/ingredientUnits";
+import type { SubRecipeUnitKey } from "../utils/recipeTree";
 
 // A household is the shared unit that owns recipes, ingredients and week
 // plans -- e.g. two partners planning meals together.
@@ -101,25 +104,45 @@ export const recipes = pgTable("recipes", {
   createdAt: timestamp("created_at").notNull().defaultNow()
 });
 
-export const recipeIngredients = pgTable("recipe_ingredients", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  recipeId: uuid("recipe_id")
-    .notNull()
-    .references(() => recipes.id, { onDelete: "cascade" }),
-  ingredientId: uuid("ingredient_id")
-    .notNull()
-    .references(() => ingredients.id, { onDelete: "restrict" }),
-  // Altijd de bron van waarheid voor macro-berekeningen (zie CLAUDE.md) --
-  // wordt server-side uit hoeveelheid+eenheid herberekend, nooit
-  // rechtstreeks vertrouwd vanuit de client.
-  hoeveelheidGram: real("hoeveelheid_gram").notNull(),
-  // Wat je daadwerkelijk hebt ingevoerd/gebruikt tijdens het koken (bv. "2
-  // eetlepel") -- puur voor weergave in de receptdetails. Nullable: oudere
-  // recepten (van vóór dit veld bestond) hebben dit niet, dan valt de UI
-  // terug op hoeveelheidGram/"gram".
-  hoeveelheid: real("hoeveelheid"),
-  eenheid: text("eenheid").$type<IngredientUnitKey>()
-});
+// Een regel in een recept verwijst óf naar een ingrediënt, óf naar een
+// ander recept (bv. "pizzabodem" als onderdeel van "pizza margherita") --
+// nooit allebei (check-constraint hieronder). Een subrecept wordt bij
+// macro's en de boodschappenlijst uitgeklapt tot zijn eigen ingrediënten,
+// zie server/utils/recipeTree.ts.
+export const recipeIngredients = pgTable(
+  "recipe_ingredients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    recipeId: uuid("recipe_id")
+      .notNull()
+      .references(() => recipes.id, { onDelete: "cascade" }),
+    ingredientId: uuid("ingredient_id").references(() => ingredients.id, { onDelete: "restrict" }),
+    // No action (i.p.v. restrict, zodat het cascade-verwijderen van een heel
+    // huishouden wel blijft werken): een recept dat nog als onderdeel wordt
+    // gebruikt kan niet los verwijderd worden (recipes/[id].delete.ts geeft daar
+    // een nette melding voor).
+    subRecipeId: uuid("sub_recipe_id").references((): AnyPgColumn => recipes.id, { onDelete: "no action" }),
+    // Bij een ingrediënt-regel altijd de bron van waarheid voor
+    // macro-berekeningen (zie CLAUDE.md) -- wordt server-side uit
+    // hoeveelheid+eenheid herberekend, nooit rechtstreeks vertrouwd vanuit de
+    // client. Bij een subrecept-regel alleen een momentopname: het subrecept
+    // kan later nog veranderen, dus daar rekent recipeTree.ts live met
+    // hoeveelheid+eenheid t.o.v. het huidige subrecept.
+    hoeveelheidGram: real("hoeveelheid_gram").notNull(),
+    // Wat je daadwerkelijk hebt ingevoerd/gebruikt tijdens het koken (bv. "2
+    // eetlepel") -- puur voor weergave in de receptdetails. Nullable: oudere
+    // recepten (van vóór dit veld bestond) hebben dit niet, dan valt de UI
+    // terug op hoeveelheidGram/"gram".
+    hoeveelheid: real("hoeveelheid"),
+    eenheid: text("eenheid").$type<IngredientUnitKey | SubRecipeUnitKey>()
+  },
+  (t) => ({
+    ingredientOfSubrecept: check(
+      "recipe_ingredients_ingredient_of_subrecept",
+      sql`(${t.ingredientId} IS NULL) <> (${t.subRecipeId} IS NULL)`
+    )
+  })
+);
 
 // Duimpje omhoog/omlaag per gebruiker per recept -- lichtgewicht feedback,
 // geaggregeerd getoond op de receptkaart.
@@ -235,7 +258,8 @@ export const mealSlots = pgTable(
 // --- relations (used for nested selects with db.query.*) -----------------
 
 export const recipesRelations = relations(recipes, ({ many }) => ({
-  ingredients: many(recipeIngredients),
+  ingredients: many(recipeIngredients, { relationName: "recipeIngredients" }),
+  gebruiktIn: many(recipeIngredients, { relationName: "subRecipe" }),
   reactions: many(recipeReactions)
 }));
 
@@ -244,7 +268,13 @@ export const recipeIngredientsRelations = relations(
   ({ one }) => ({
     recipe: one(recipes, {
       fields: [recipeIngredients.recipeId],
-      references: [recipes.id]
+      references: [recipes.id],
+      relationName: "recipeIngredients"
+    }),
+    subRecipe: one(recipes, {
+      fields: [recipeIngredients.subRecipeId],
+      references: [recipes.id],
+      relationName: "subRecipe"
     }),
     ingredient: one(ingredients, {
       fields: [recipeIngredients.ingredientId],

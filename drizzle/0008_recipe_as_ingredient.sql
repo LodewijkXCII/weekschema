@@ -1,0 +1,4 @@
+ALTER TABLE "recipe_ingredients" ALTER COLUMN "ingredient_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "recipe_ingredients" ADD COLUMN "sub_recipe_id" uuid;--> statement-breakpoint
+ALTER TABLE "recipe_ingredients" ADD CONSTRAINT "recipe_ingredients_sub_recipe_id_recipes_id_fk" FOREIGN KEY ("sub_recipe_id") REFERENCES "public"."recipes"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "recipe_ingredients" ADD CONSTRAINT "recipe_ingredients_ingredient_of_subrecept" CHECK (("recipe_ingredients"."ingredient_id" IS NULL) <> ("recipe_ingredients"."sub_recipe_id" IS NULL));

@@ -3,7 +3,7 @@ import { readdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { requireHousehold } from "../../utils/session";
 import { db } from "../../db";
-import { recipes } from "../../db/schema";
+import { recipes, recipeIngredients } from "../../db/schema";
 
 // DELETE /api/recipes/:id -- de database ruimt de rest zelf op via de
 // foreign keys: recipe_ingredients en recipe_reactions cascaden mee, en
@@ -11,6 +11,21 @@ import { recipes } from "../../db/schema";
 export default defineEventHandler(async (event) => {
   const { householdId } = await requireHousehold(event);
   const id = getRouterParam(event, "id");
+
+  // Wordt dit recept nog als onderdeel van een ander recept gebruikt, dan
+  // eerst daar weghalen -- anders zou dat recept stilletjes ingrediënten
+  // (en macro's) kwijtraken. De database weigert het anders ook (foreign key).
+  const gebruiktIn = await db.query.recipeIngredients.findMany({
+    where: eq(recipeIngredients.subRecipeId, id!),
+    with: { recipe: { columns: { naam: true, householdId: true } } }
+  });
+  const namen = [...new Set(gebruiktIn.filter((ri) => ri.recipe.householdId === householdId).map((ri) => ri.recipe.naam))];
+  if (namen.length) {
+    throw createError({
+      statusCode: 409,
+      statusMessage: `Dit recept wordt nog gebruikt in: ${namen.join(", ")}. Haal het daar eerst weg.`
+    });
+  }
 
   const [deleted] = await db
     .delete(recipes)

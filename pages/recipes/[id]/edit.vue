@@ -9,7 +9,7 @@
     <div v-if="!loaded" class="text-sm text-muted-foreground">Laden…</div>
     <p v-else-if="!form" class="text-sm text-destructive">{{ error }}</p>
 
-    <RecipeForm v-else v-model="form" :loading="loading" :error="error" photo-label="Nieuwe foto (optioneel)" @submit="submit">
+    <RecipeForm v-else v-model="form" :recipe-id="recipeId" :loading="loading" :error="error" photo-label="Nieuwe foto (optioneel)" @submit="submit">
       <template #submit><Check class="size-4" /> Wijzigingen opslaan</template>
     </RecipeForm>
 

@@ -123,6 +123,7 @@
 import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Copy, Apple, Users } from "lucide-vue-next";
 import { isoDate, formatWeekDate, weekStartFromQuery } from "~/composables/useWeek";
 import { PERSONEN_HOOFDMAALTIJD, slotPersonen } from "~/composables/useMealMoments";
+import { flattenRecipe } from "~/server/utils/recipeTree";
 
 useHead({ title: "Boodschappenlijst" });
 
@@ -206,7 +207,8 @@ const shoppingList = computed(() => {
   }
   for (const { recipe, personen } of weekRecipes.value) {
     const factor = personen / recipe.porties;
-    for (const ri of recipe.ingredients) add(ri.ingredient, ri.hoeveelheidGram * factor);
+    // Subrecepten (bv. een pizzabodem) uitgeklapt tot hun eigen ingrediënten.
+    for (const { ingredient, gram } of flattenRecipe(recipe)) add(ingredient, gram * factor);
   }
   for (const { ingredient, gram } of weekLooseIngredients.value) add(ingredient, gram);
   return [...totals.values()].sort((a, b) => a.naam.localeCompare(b.naam, "nl"));

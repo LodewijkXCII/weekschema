@@ -5,7 +5,11 @@
       class="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-background px-3 py-2 text-left text-sm outline-none focus:ring-2 focus:ring-ring"
       @click="toggle"
     >
-      <span class="truncate" :class="!selected ? 'text-muted-foreground' : ''">{{ selected ? selected.naam : "Kies een ingrediënt..." }}</span>
+      <span v-if="selectedRecipe" class="inline-flex min-w-0 items-center gap-1.5">
+        <ChefHat class="size-3.5 shrink-0 text-primary" />
+        <span class="truncate">{{ selectedRecipe.naam }}</span>
+      </span>
+      <span v-else class="truncate" :class="!selected ? 'text-muted-foreground' : ''">{{ selected ? selected.naam : placeholder }}</span>
       <ChevronDown class="size-4 shrink-0 text-muted-foreground" />
     </button>
 
@@ -16,7 +20,7 @@
           <input
             ref="searchInput"
             v-model="search"
-            placeholder="Zoek ingrediënt..."
+            :placeholder="recipes?.length ? 'Zoek ingrediënt of recept...' : 'Zoek ingrediënt...'"
             class="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring"
             @keydown.esc="close"
             @keydown.enter.prevent="selectFirstMatch"
@@ -31,7 +35,14 @@
               class="block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-secondary"
               @click="select(ing)"
             >{{ ing.favoriet ? "★ " : "" }}{{ ing.naam }}</button>
-            <p v-if="filtered.length === 0" class="px-2.5 py-3 text-xs text-muted-foreground">Niets gevonden.</p>
+            <button
+              v-for="r in filteredRecipes"
+              :key="r.id"
+              type="button"
+              class="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-secondary"
+              @click="selectRecipe(r)"
+            ><ChefHat class="size-3.5 shrink-0 text-primary" /><span class="truncate">{{ r.naam }}</span></button>
+            <p v-if="filtered.length === 0 && filteredRecipes.length === 0" class="px-2.5 py-3 text-xs text-muted-foreground">Niets gevonden.</p>
           </template>
           <template v-else>
             <div v-for="group in grouped" :key="group.categorie">
@@ -44,6 +55,16 @@
                 @click="select(ing)"
               >{{ ing.favoriet ? "★ " : "" }}{{ ing.naam }}</button>
             </div>
+            <div v-if="sortedRecipes.length">
+              <p class="px-2.5 pt-2 pb-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">Eigen recepten</p>
+              <button
+                v-for="r in sortedRecipes"
+                :key="r.id"
+                type="button"
+                class="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-secondary"
+                @click="selectRecipe(r)"
+              ><ChefHat class="size-3.5 shrink-0 text-primary" /><span class="truncate">{{ r.naam }}</span></button>
+            </div>
           </template>
         </div>
       </div>
@@ -52,16 +73,21 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronDown } from "lucide-vue-next";
+import { ChevronDown, ChefHat } from "lucide-vue-next";
 
-const props = defineProps<{ modelValue: string; ingredients: any[] }>();
-const emit = defineEmits<{ (e: "update:modelValue", id: string): void }>();
+// Met `recipes` erbij kun je ook een eigen recept kiezen (bv. een
+// pizzabodem als onderdeel van een pizza) -- dat komt dan in `recipeId`,
+// en `modelValue` (het ingrediënt) wordt leeggemaakt, en andersom.
+const props = defineProps<{ modelValue: string; ingredients: any[]; recipeId?: string | null; recipes?: any[] }>();
+const emit = defineEmits<{ (e: "update:modelValue", id: string): void; (e: "update:recipeId", id: string | null): void }>();
 
 const open = ref(false);
 const search = ref("");
 const searchInput = ref<HTMLInputElement | null>(null);
 
 const selected = computed(() => props.ingredients.find((i) => i.id === props.modelValue) ?? null);
+const selectedRecipe = computed(() => (props.recipeId ? (props.recipes ?? []).find((r) => r.id === props.recipeId) ?? null : null));
+const placeholder = computed(() => (props.recipes?.length ? "Kies een ingrediënt of recept..." : "Kies een ingrediënt..."));
 
 // Zonder zoekterm: gegroepeerd op winkelcategorie, net als de
 // boodschappenlijst -- een logische, overzichtelijke opbouw om doorheen te
@@ -86,6 +112,13 @@ const filtered = computed(() => {
     .sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
 });
 
+const sortedRecipes = computed(() => [...(props.recipes ?? [])].sort((a, b) => a.naam.localeCompare(b.naam, "nl")));
+
+const filteredRecipes = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  return sortedRecipes.value.filter((r) => r.naam.toLowerCase().includes(q));
+});
+
 function toggle() {
   open.value = !open.value;
   if (open.value) {
@@ -100,10 +133,18 @@ function close() {
 
 function select(ing: any) {
   emit("update:modelValue", ing.id);
+  emit("update:recipeId", null);
+  close();
+}
+
+function selectRecipe(recipe: any) {
+  emit("update:recipeId", recipe.id);
+  emit("update:modelValue", "");
   close();
 }
 
 function selectFirstMatch() {
   if (filtered.value.length > 0) select(filtered.value[0]);
+  else if (filteredRecipes.value.length > 0) selectRecipe(filteredRecipes.value[0]);
 }
 </script>
