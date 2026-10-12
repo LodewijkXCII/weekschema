@@ -58,6 +58,8 @@
 <script setup lang="ts">
 import { Beef, Plus, Pencil, Check } from "lucide-vue-next";
 
+useHead({ title: "Ingrediënten" });
+
 const ingredients = ref<any[]>([]);
 const loading = ref(true);
 const search = ref("");

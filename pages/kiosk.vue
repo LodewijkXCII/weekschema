@@ -40,7 +40,7 @@
           :meal-slot="activeSlot(moment.key)"
           :kok="kokNaam(moment.key)"
           :current="isTodaySelected && moment.key === huidigMoment"
-          @open="detailRecipe = $event"
+          @open="openDetail(moment.key)"
         />
       </div>
 
@@ -69,15 +69,17 @@
       </div>
     </template>
 
-    <RecipeDetail :recipe="detailRecipe" @close="detailRecipe = null" @updated="onDetailUpdated" />
+    <RecipeDetail :recipe="detailRecipe" :personen="detailPersonen" @close="detailRecipe = null" @updated="onDetailUpdated" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { X, Sun, Moon } from "lucide-vue-next";
-import { MEAL_MOMENTS, WEEK_DAGEN, momentRowLabel, currentMomentKey } from "~/composables/useMealMoments";
+import { MEAL_MOMENTS, WEEK_DAGEN, momentRowLabel, currentMomentKey, slotPersonen } from "~/composables/useMealMoments";
 import { mondayOf, isoDate, dateForDag, formatDayDate } from "~/composables/useWeek";
 import { isSlotFilled } from "~/composables/useMacros";
+
+useHead({ title: "Keuken" });
 
 definePageMeta({ layout: "kiosk" });
 
@@ -96,6 +98,7 @@ const selectedDag = ref<string>(todayDagKey());
 const plan = ref<any>(null);
 const householdMembers = ref<{ userId: string; naam: string }[]>([]);
 const detailRecipe = ref<any | null>(null);
+const detailPersonen = ref<number | null>(null);
 const clock = ref(formatClock());
 const huidigeDatum = ref(isoDate(new Date()));
 const huidigMoment = ref(currentMomentKey());
@@ -155,6 +158,13 @@ function slotForDag(dag: string, moment: string) {
 
 function activeSlot(moment: string) {
   return slotForDag(selectedDag.value, moment);
+}
+
+function openDetail(moment: string) {
+  const slot = activeSlot(moment);
+  if (!slot?.recipe) return;
+  detailPersonen.value = slotPersonen(slot);
+  detailRecipe.value = slot.recipe;
 }
 
 function kokNaam(moment: string) {

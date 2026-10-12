@@ -124,6 +124,8 @@ import { ShoppingCart, ArrowLeft, ChevronLeft, ChevronRight, Copy, Apple, Users 
 import { isoDate, formatWeekDate, weekStartFromQuery } from "~/composables/useWeek";
 import { PERSONEN_HOOFDMAALTIJD, slotPersonen } from "~/composables/useMealMoments";
 
+useHead({ title: "Boodschappenlijst" });
+
 const route = useRoute();
 
 const weekStart = ref(weekStartFromQuery(route.query.week));

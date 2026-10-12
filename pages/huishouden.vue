@@ -51,6 +51,8 @@
 <script setup lang="ts">
 import { Users } from "lucide-vue-next";
 
+useHead({ title: "Huishouden" });
+
 const route = useRoute();
 const mode = ref<"join" | "create">("join");
 const inviteCode = ref("");

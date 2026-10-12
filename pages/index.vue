@@ -187,7 +187,7 @@
 
     <RecipeLibrary v-if="mode === 'edit'" :recipes="recipes" class="mt-5" @dragstart="draggedRecipeId = $event" />
 
-    <RecipeDetail :recipe="detailRecipe" @close="detailRecipe = null" @updated="onDetailUpdated" />
+    <RecipeDetail :recipe="detailRecipe" :personen="detailPersonen" @close="detailRecipe = null" @updated="onDetailUpdated" />
   </div>
 </template>
 
@@ -195,11 +195,13 @@
 import {
   ChevronLeft, ChevronRight, CalendarDays, ShoppingCart, TrendingUp, Lock, Pencil, ClipboardCopy, Wand2
 } from "lucide-vue-next";
-import { MEAL_MOMENTS, WEEK_DAGEN, RECIPE_CATEGORIE_LABELS, momentRowLabel, defaultPersonen } from "~/composables/useMealMoments";
+import { MEAL_MOMENTS, WEEK_DAGEN, RECIPE_CATEGORIE_LABELS, momentRowLabel, defaultPersonen, slotPersonen } from "~/composables/useMealMoments";
 import { mondayOf, isoDate, formatWeekDate, weekStartFromQuery, dateForDag, formatDayDate } from "~/composables/useWeek";
 import { emptyMacros, slotMacros, isSlotFilled, ingredientMacros, type Macros } from "~/composables/useMacros";
 import { eenheidNaarGram, type IngredientUnitKey } from "~/composables/useIngredientUnits";
 import { useTargetProfiles } from "~/composables/useTargetProfiles";
+
+useHead({ title: "Weekplanner" });
 
 const route = useRoute();
 
@@ -213,6 +215,7 @@ const dragOverKey = ref<string | null>(null);
 
 const mode = ref<"edit" | "saved">("edit");
 const detailRecipe = ref<any | null>(null);
+const detailPersonen = ref<number | null>(null);
 
 const activeCell = ref<string | null>(null);
 // Welke weergave de zoek-popover opende: de mobiele dagweergave en de
@@ -365,8 +368,10 @@ function onFilledClick(dag: string, moment: string) {
 }
 
 function openDetail(dag: string, moment: string) {
-  const recipe = slotFor(dag, moment)?.recipe;
-  if (recipe) detailRecipe.value = recipe;
+  const slot = slotFor(dag, moment);
+  if (!slot?.recipe) return;
+  detailPersonen.value = slotPersonen(slot);
+  detailRecipe.value = slot.recipe;
 }
 
 async function onDetailUpdated() {

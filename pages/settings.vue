@@ -56,6 +56,8 @@
 <script setup lang="ts">
 import { SlidersHorizontal, Plus, X, Users } from "lucide-vue-next";
 
+useHead({ title: "Instellingen" });
+
 const profiles = ref<any[]>([]);
 const household = ref<any>(null);
 const loading = ref(false);

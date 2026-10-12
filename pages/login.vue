@@ -29,6 +29,8 @@
 <script setup lang="ts">
 import { Leaf } from "lucide-vue-next";
 
+useHead({ title: "Inloggen" });
+
 const authClient = useAuthClient();
 const email = ref("");
 const password = ref("");

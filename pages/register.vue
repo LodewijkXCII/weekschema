@@ -57,6 +57,8 @@
 <script setup lang="ts">
 import { Leaf } from "lucide-vue-next";
 
+useHead({ title: "Account aanmaken" });
+
 const authClient = useAuthClient();
 const name = ref("");
 const email = ref("");

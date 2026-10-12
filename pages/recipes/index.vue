@@ -35,6 +35,8 @@
 import { ChefHat, Plus, Star } from "lucide-vue-next";
 import { RECIPE_CATEGORIEEN, RECIPE_CATEGORIE_LABELS } from "~/composables/useMealMoments";
 
+useHead({ title: "Recepten" });
+
 const recipes = ref<any[]>([]);
 const activeRecipe = ref<any | null>(null);
 const alleenFavorieten = ref(false);

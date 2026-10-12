@@ -82,7 +82,11 @@ export default defineNuxtConfig({
       short_name: "Weekschema",
       description: "Gedeelde weekmenu-planner",
       lang: "nl",
-      start_url: "/",
+      // De geïnstalleerde app is vooral de keukentablet: altijd de kiosk
+      // openen. `id` blijft "/" zodat bestaande installaties dezelfde app
+      // blijven (zonder id leidt de browser die af van start_url).
+      id: "/",
+      start_url: "/kiosk",
       scope: "/",
       display: "standalone",
       theme_color: "#1f6f3d",

@@ -37,6 +37,8 @@
 import { Pencil, ArrowLeft, Check } from "lucide-vue-next";
 import { ingredientFormFrom, applySearchResult, ingredientPayload, type IngredientFormState } from "~/composables/useIngredientForm";
 
+useHead({ title: "Ingrediënt bewerken" });
+
 const route = useRoute();
 const ingredientId = route.params.id as string;
 

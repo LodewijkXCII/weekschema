@@ -39,8 +39,15 @@
         </div>
         <p class="mt-1 mb-2 flex items-center gap-2 text-sm text-muted-foreground">
           <span class="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground uppercase">{{ RECIPE_CATEGORIE_LABELS[recipe.categorie] }}</span>
-          · {{ recipe.porties }} portie(s)
+          <template v-if="personen == null">· {{ recipe.porties }} portie(s)</template>
         </p>
+        <div v-if="personen != null" class="mb-3 flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-3 py-2.5">
+          <Users class="size-5 text-primary" />
+          <p class="text-sm">
+            Maken voor <strong class="font-display text-lg text-foreground tabular-nums">{{ formatPersonen(personen) }}</strong>
+            {{ personen === 1 ? "persoon" : "personen" }}
+          </p>
+        </div>
 
         <RecipeTags :tags="recipe.tags" class="mb-2" />
         <div v-if="allergenen.length" class="mb-2.5 flex flex-wrap gap-1">
@@ -77,11 +84,11 @@
         <div class="mt-5 mb-2 flex items-center justify-between">
           <h3 class="text-sm font-display font-semibold">Ingrediënten</h3>
           <div class="flex items-center gap-1.5">
-            <button type="button" class="grid size-7 place-items-center rounded-lg border border-border hover:bg-secondary" @click="gewenstePorties = Math.max(1, gewenstePorties - 1)">
+            <button type="button" class="grid size-7 place-items-center rounded-lg border border-border hover:bg-secondary" @click="gewenstePorties = Math.max(0.5, gewenstePorties - 0.5)">
               <Minus class="size-3.5" />
             </button>
-            <span class="min-w-[70px] text-center text-xs tabular-nums">{{ gewenstePorties }} portie(s)</span>
-            <button type="button" class="grid size-7 place-items-center rounded-lg border border-border hover:bg-secondary" @click="gewenstePorties++">
+            <span class="min-w-[70px] text-center text-xs tabular-nums">{{ formatPersonen(gewenstePorties) }} {{ personen != null ? (gewenstePorties === 1 ? "persoon" : "personen") : "portie(s)" }}</span>
+            <button type="button" class="grid size-7 place-items-center rounded-lg border border-border hover:bg-secondary" @click="gewenstePorties += 0.5">
               <Plus class="size-3.5" />
             </button>
           </div>
@@ -115,12 +122,16 @@
 </template>
 
 <script setup lang="ts">
-import { X, Camera, Star, Pencil, TriangleAlert, ThumbsUp, ThumbsDown, Minus, Plus } from "lucide-vue-next";
+import { X, Camera, Star, Pencil, TriangleAlert, ThumbsUp, ThumbsDown, Minus, Plus, Users } from "lucide-vue-next";
 import { RECIPE_CATEGORIE_LABELS } from "~/composables/useMealMoments";
 import { INGREDIENT_UNITS, type IngredientUnitKey } from "~/composables/useIngredientUnits";
 import { recipePerPortie } from "~/composables/useMacros";
 
-const props = defineProps<{ recipe: any | null }>();
+// `personen` wordt meegegeven als het recept vanuit een vakje op het
+// weekbord/de kiosk wordt geopend: dan schalen de ingrediënten meteen naar
+// het aantal personen van dat vakje (zie slotPersonen()) i.p.v. naar de
+// porties van het recept zelf.
+const props = defineProps<{ recipe: any | null; personen?: number | null }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "updated", recipe: any): void }>();
 
 const uploadError = ref("");
@@ -129,13 +140,17 @@ const kookModus = ref(false);
 const afgevinkt = ref<boolean[]>([]);
 
 watch(
-  () => props.recipe?.id,
+  () => [props.recipe?.id, props.personen],
   () => {
-    gewenstePorties.value = props.recipe?.porties || 1;
+    gewenstePorties.value = props.personen ?? (props.recipe?.porties || 1);
     kookModus.value = false;
   },
   { immediate: true }
 );
+
+function formatPersonen(n: number) {
+  return n.toLocaleString("nl");
+}
 
 const schaal = computed(() => gewenstePorties.value / (props.recipe?.porties || 1));
 

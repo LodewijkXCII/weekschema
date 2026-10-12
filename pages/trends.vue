@@ -57,6 +57,8 @@
 import { TrendingUp, ArrowLeft } from "lucide-vue-next";
 import { useTargetProfiles } from "~/composables/useTargetProfiles";
 
+useHead({ title: "Trends" });
+
 interface DagTotaal { datum: string; kcal: number; eiwit: number; vet: number; kh: number }
 
 const weken = ref(8);

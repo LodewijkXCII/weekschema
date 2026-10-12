@@ -24,6 +24,8 @@
 import { Beef, Plus } from "lucide-vue-next";
 import { emptyIngredientForm, applySearchResult, ingredientPayload } from "~/composables/useIngredientForm";
 
+useHead({ title: "Ingrediënt toevoegen" });
+
 const form = ref(emptyIngredientForm());
 const error = ref("");
 const success = ref(false);

@@ -30,6 +30,8 @@
 import { ChefHat, ArrowLeft, Download, X, Plus } from "lucide-vue-next";
 import { emptyRecipeForm, recipePayload, uploadRecipePhoto } from "~/composables/useRecipeForm";
 
+useHead({ title: "Gerecht toevoegen" });
+
 const form = ref(emptyRecipeForm());
 const error = ref("");
 const loading = ref(false);
